@@ -15,7 +15,7 @@ main:
     url: /year-archive/
     
   - title: "CV"
-    url: /http://vaurenw.github.io/files/VaurenWimalasenaResume.pdf/
+    url: http://vaurenw.github.io/files/VaurenWimalasenaResume.pdf
     
 #  - title: "Guide"
 #    url: /markdown/
