@@ -7,14 +7,14 @@
 main:
   - title: "Newsletter"
     url: https://vauren.substack.com/
- 
-  - title: "Portfolio"
-    url: /portfolio/
         
   - title: "Blog Posts"
     url: /year-archive/
     
-  - title: "CV"
+#  - title: "Portfolio"
+#    url: /portfolio/
+
+#  - title: "CV"
 #    url: http://vaurenw.github.io/files/VaurenWimalasenaResume.pdf
     
 #  - title: "Guide"
