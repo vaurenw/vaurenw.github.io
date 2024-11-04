@@ -25,10 +25,10 @@ author:
   name             : "Vauren Mathew"
   pronouns         : # example: "she/her"  
   bio              : "Writer"
-  location         : "Earth"
+  location         : "earth"
   employer         : "University of New Brunswick"
   uri              : # URL
-  email            : "vaurenmathew@gmail.com" 
+  email            : # Email
 
   # Academic websites
   arxiv            : # URL - Update with the correct link to your profile
@@ -48,7 +48,7 @@ author:
   stackoverflow    : # User number or user number and name (i.e., use "1" or "1/jeff-atwood")    
 
   # Social media
-  bluesky          : # Replace this with you Bluesky username
+  bluesky          : "vaurenmathew"
   facebook         : # Username
   flickr           : # Username
   foursquare       : # Username
