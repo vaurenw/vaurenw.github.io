@@ -1,0 +1,22 @@
+/* _sass/_dark-mode.scss */
+body.dark-mode {
+    background-color: #121212;
+    color: #e0e0e0;
+  }
+  
+  body.dark-mode a {
+    color: #bb86fc;
+  }
+  
+  body.dark-mode .container {
+    background-color: #1e1e1e;
+  }
+  
+  body.dark-mode .button {
+    background-color: #bb86fc;
+    color: #121212;
+  }
+  
+  body.dark-mode .button:hover {
+    background-color: #3700b3;
+  }
