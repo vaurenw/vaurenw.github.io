@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: Firefox OS apps and beyond</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="Firefox OS apps and beyond" />
+ <meta property="og:title" content="Firefox OS apps and beyond"/>
+ <meta property="og:url" content="https://vaurenw.github.io/firefox-os-apps-and-beyond.html"/>
+ <meta name="twitter:title" content="Firefox OS apps and beyond" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/firefox-os-apps-and-beyond.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>Firefox OS apps and beyond</h1>
+  <time datetime="2016-04-12T00:00:00+02:00">Tue 12 April 2016</time>
+</header>
+<article>
+    <p>I have written two Firefox OS apps, which are both not very popular. You may stop reading here if you haven't used either <em>squeezefox</em> or <em>wallabag-fxos</em>. This article is about how I think they should evolve, while <a href="https://wiki.mozilla.org/SmartPhone_Code_Transition">Firefox OS is currently transitioning into a community-led B2G OS.</a></p>
+<p>The apps I have written are both simple web clients for specific API endpoints.
+My first app, <a href="https://github.com/freddyb/squeezefox">Squeezefox</a> is a remote control for Logitech Squeezebox Wifi Radios.
+The other one, <a href="https://github.com/freddyb/wallabag-fxos">wallabag-fxos</a> is a Firefox OS client for the <em><a href="https://getpocket.com/">Pocket</a> clone</em> <a href="https://wallabag.org/">Wallabag</a>.</p>
+<p>The only feature that makes both of these apps so Firefox OS specific is their use of <code>systemXHR</code>: In Firefox OS, an <a href="https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest">XMLHttpRequest (XHR)</a> instantiated with the <code>{mozSystem: true}</code> parameter is allowed to issue HTTP requests towards all origins. This is what allows my apps to be configured to talk with the user's wallabag instance (or squeezebox device).</p>
+<p>I myself do not use those apps very heavily myself anymore and don't think I would make a great maintainer. But I do strongly believe in webapps and the future of the web regardless of the success of particular platforms, and I want these apps to be useful - regardless of the user agent.</p>
+<p>For this reason, I suggest re-architecting applications who rely on it to be freed from proprietary technologies like <code>systemXHR</code>: The idea is to suggest users they self-host these apps on the same origin where they already host their main endpoint. Both wallabag and squeezebox servers (aka logitech media servers) allow hosting additional static files besides those which are built-in.
+By removing some app-specific endpoint settings and defaulting to request against <code>location.href</code>, those apps can become more universally usable in its current form without any extra permissions or vendor-specific extensions.</p>
+<p>Users who want to keep my apps in their Firefox OS/B2G OS specific nature, may keep using them as is. I have saved their current state in branches called <code>fxos-legacy</code>.</p>
+<ul>
+<li><a href="https://github.com/wallabag/wallabag-fxos/tree/fxos-legacy">https://github.com/wallabag/wallabag-fxos/tree/fxos-legacy</a></li>
+<li><a href="https://github.com/freddyb/squeezefox/tree/fxos-legacy">https://github.com/freddyb/squeezefox/tree/fxos-legacy</a></li>
+</ul>
+<p>I will continue to welcome contributions to both the new architecture as well as the legacy branches, but I strongly recommend forking my projects if folks intend to use them productively in the future. But starting now, I will not commit to actively drive the development of either.</p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/fxos-b2g-os-transition-apps.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

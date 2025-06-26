@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: A CDN that can not XSS you: Using Subresource Integrity</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="A CDN that can not XSS you: Using Subresource Integrity" />
+ <meta property="og:title" content="A CDN that can not XSS you: Using Subresource Integrity"/>
+ <meta property="og:url" content="https://vaurenw.github.io/using-subresource-integrity.html"/>
+ <meta name="twitter:title" content="A CDN that can not XSS you: Using Subresource Integrity" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/using-subresource-integrity.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>A CDN that can not XSS you: Using Subresource Integrity</h1>
+  <time datetime="2015-07-19T00:00:00+02:00">Sun 19 July 2015</time>
+</header>
+<article>
+    <p><em>This blog post is the text-version of my presentation from OWASP AppSec EU 2015. You can <a href="https://people.mozilla.org/~fbraun/files/sri-appseceu2015.pdf">download the slides</a> or <a href="https://www.youtube.com/watch?v=JOcpIF047xs">watch the video on YouTube</a></em></p>
+<h2>Introduction</h2>
+<p>In this blog post, I explain <a href="https://w3c.github.io/webappsec/specs/subresourceintegrity/">Subresource Integrity (SRI)</a>, of which I am one of the co-editors. SRI is an upcoming W3C standard that allows securing third-party loads of JavaScript and CSS. This is achieved by comparing the content with a cryptograhic digest that is contained within the surrounding HTML tag.</p>
+<h3>Motivation</h3>
+<p>Many websites use Content Delivery Networks (CDNs) to improve website performance and save on bandwidth. Loading a popular libraries in a common version from a CDN has a high likelihood of being already in your visitor's cache. A lot of CDNs also provide metrics. </p>
+<p>The problem I see with CDNs is that you are increasing the risk surface of your web application: If your own setup is relatively secure, the attacker may just go ahead and attack the CDN instead.</p>
+<p>This is because JavaScript files included on your HTML execute within the scope of your application: This spans everything that is on the same scheme (HTTP or HTTPS), domain name and port (i.e., on the <a href="https://en.wikipedia.org/wiki/Same-origin_policy#Origin_determination_rules"><em>same origin</em></a>. <a href="https://annevankesteren.nl/2015/02/same-origin-policy">See here for more</a>). This implies not only access to all web content, which may be sensitive information like user names, passwords and email address. The script is also allowed to fully interact with the DOM, the cookies and all permissions given to the current website (e.g., Geolocation, Notifications, etc.).</p>
+<p>Furthermore, attackers that are interested in targeting a lot of users (and not just <em>your</em> web application) will go for popular CDNs to gain a very high impact - <a href="https://blog.cloudflare.com/an-introduction-to-javascript-based-ddos/">as we have seen with DDoS attacks against GitHub</a>.</p>
+<p>But reducing this attack surface is not that complicated In fact, we already know exactly what file we want to include. There is no need to allow arbitrary scripts from a third-party to go wild within your web page. If only we could check the file before executing it.</p>
+<h3>Subresource Integrity to the Rescue</h3>
+<p>You <em>can</em> now check that the scripts matches exactly what you wanted to include, when you originally wrote your web page!</p>
+<p>Subresource Integrity (SRI) allows specifying the <em>digest</em> of the file that you want to include. The digest is the output of a cryptographic hash function, which helps us achieve integrity.</p>
+<p>The idea is that you provide a short <code>integrity</code> attribute, which will help the browser decide if the file has been modified. This works because a hash function gives a completely different output every time someone modifies the file.</p>
+<h2>Using Subresource Integrity</h2>
+<p><strong>Subresource Integrity is an upcoming W3C standard to secure script and style loads from other domains</strong>.</p>
+<p>Just add an <code>integrity</code> attribute to your script tag.</p>
+<h5>Scripts</h5>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;https://code.jquery.com/jquery-1.10.2.min.js&quot;</span>
+        <span class="na">integrity</span><span class="o">=</span><span class="s">&quot;sha256-C6CB9UYIS9UJeqinPHWTHVqh/E1uhG5Twh+Y5qFQmYg=&quot;</span>
+        <span class="na">crossorigin</span><span class="o">=</span><span class="s">&quot;anonymous&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</code></pre></div>
+
+<h5>Styles</h5>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">link</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;stylesheet&quot;</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://site53.example.net/style.css&quot;</span>
+      <span class="na">integrity</span><span class="o">=</span><span class="s">&quot;sha256-vjnUh7+rXHH2lg/5vDY8032ftNVCIEC21vL6szrVw9M=&quot;</span>
+      <span class="na">crossorigin</span><span class="o">=</span><span class="s">&quot;anonymous&quot;</span><span class="p">&gt;</span>
+</code></pre></div>
+
+<h3>Computing the <code>integrity</code> value</h3>
+<p>The value of the <code>integrity</code> attribute forms a tiny micro-syntax, that is the name of the cryptographic hash function (e.g. sha256) and the output that it has given us.</p>
+<p>An example is given in the <a href="https://w3c.github.io/webappsec/specs/subresourceintegrity/#integrity-metadata">SRI specification</a>:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="nb">echo</span><span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;alert(&#39;Hello, world.&#39;);&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>dgst<span class="w"> </span>-sha256<span class="w"> </span>-binary<span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>enc<span class="w"> </span>-base64<span class="w"> </span>-A
+qznLcsROx4GACP2dm0UCKCzCG+HiZ1guq6ZZDob/Tng<span class="o">=</span>
+</code></pre></div>
+
+<p>Just prefix this with <code>sha256-</code> and you're done.</p>
+<h3>What is this <code>crossorigin</code> attribute?</h3>
+<p>It is usually not allowed to read the content of files on other domains (rather: origins). It only works if the domain explicitly allows this. In short, SRI requires <a href="https://annevankesteren.nl/2012/12/cors-101">CORS</a> to work. The <code>crossorigin</code> attribute tells the browser to fetch the file in a way that allows reading it afterwards or fail if CORS is not supported. Fortunately, a lot of CDNs already <a href="http://enable-cors.org/">enable cors</a>.</p>
+<h3>Multiple hashes</h3>
+<p>You can provide multiple tokens of integrity metadata (i.e., hashname, dash and value) in one <code>integrity</code> attribute. If they contain different hash functions, the browser will pick and prioritize the strongest.</p>
+<p>You can also specify multiple values with the same hash function. This is useful when you expect one of many possible resources behind a URL. This can happen because of browser sniffing, or when you expect an update to a file that should not break the page.</p>
+<h3>Error Recovery &amp; Reporting</h3>
+<p>Despite earlier attempts, there is no error recovery or error reporting functionality in Subresource Integrity for now.</p>
+<p>You need to recover from failed script loads, otherwise your website may break. A typical attempt would be to load the desired third-party library from an (un-cached) copy on your own origin:</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;https://code.jquery.com/jquery.min.js&quot;</span>
+        <span class="na">integrity</span><span class="o">=</span><span class="s">&quot;sha256-C6CB9UYIS9UJeqinPHWTHVq…&quot;</span>
+        <span class="na">crossorigin</span><span class="o">=</span><span class="s">&quot;anonymous&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span><span class="p">&gt;</span><span class="nb">window</span><span class="p">.</span><span class="nx">jQuery</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">write</span><span class="p">(</span><span class="s1">&#39;&lt;script src=&quot;/jquery-.min.js&quot;&gt;&lt;\/script&gt;&#39;</span><span class="p">)&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</code></pre></div>
+
+<p>You could also use <a href="http://www.w3.org/TR/beacon/"><code>navigator.sendBeacon</code></a> to log this, if you have an infrastructure for error reporting.</p>
+<h3>Tooling</h3>
+<p>There are already some tools that help using Subresource Integrity.</p>
+<ul>
+<li><a href="https://github.com/neftaly/npm-sri-toolbox">sri-toolbox</a> generates valid integrity metadata (hash name, dash, digest)</li>
+<li><a href="https://github.com/jonathanKingston/ember-cli-sri">Ember.js plugin</a></li>
+<li><a href="https://github.com/jonathanKingston/broccoli-sri-hash">broccoli plugin</a></li>
+</ul>
+<h3>Implementation Status</h3>
+<p>Subresource Integrity is coming to mainline browsers soon (<a href="https://bugzilla.mozilla.org/show_bug.cgi?id=992096">Firefox</a>, <a href="https://codereview.chromium.org/566083003/">Chrome</a> or use a <a href="https://github.com/w3c/webappsec/tree/master/polyfills/subresourceintegrity">Polyfill</a>). You can <a href="https://srihash.org/">test SRI support on srihash.org</a>.</p>
+<h2>Conclusion</h2>
+<p>Loading your scripts and styles from a Content Delivery Network (CDN) can harm your website, if the CDN gets compromised or becomes malicious. 
+You can add <code>integrity</code> attributes to secure your third-party scripts &amp; styles. This greatly diminishes security risks, as any change to those files will be detected and prevented by the browser.</p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/using-subresource-integrity.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

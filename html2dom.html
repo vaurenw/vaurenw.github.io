@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: html2dom</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="html2dom" />
+ <meta property="og:title" content="html2dom"/>
+ <meta property="og:url" content="https://vaurenw.github.io/html2dom.html"/>
+ <meta name="twitter:title" content="html2dom" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/html2dom.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>html2dom</h1>
+  <time datetime="2013-09-24T00:00:00+02:00">Tue 24 September 2013</time>
+</header>
+<article>
+    <p>I originally blogged about <em>html2dom</em> on the <a href="https://blog.mozilla.org/security/2013/09/24/introducing-html2dom-an-alternative-to-setting-innerhtml/">Mozilla Security Blog</a></p>
+<p>Having spent significant time to <a href="https://wiki.mozilla.org/Security/Reviews/Gaia">review the source code of some Firefox OS core apps</a>, I noticed that a lot of developers like to use <code>innerHTML</code> (or <code>insertAdjacentHTML</code>). It is indeed a useful API to insert HTML from a given string without hand-crafting objects for each and every node you want to insert into the DOM.
+The dilemma begins however, when this is not a hardcoded string but something which is constructed dynamically. If the string contains user input (or something from a malicious third-party - be it app or website), it may as well insert and change application logic (Cross-Site Scripting): The typical example would be a <code>&amp;lt;script&gt;</code> tag that runs code on the attacker's behalf and reads, modifies or forwards the current content to a third-party. <a href="https://developer.mozilla.org/en/docs/Security/CSP" title="Content Security Policy">CSP</a>, which we use in Firefox OS, can only mitigate some of these attacks, but <a href="http://lcamtuf.blogspot.de/2011/12/notes-about-post-xss-world.html">certainly not all</a>.</p>
+<h4>Using innerHTML is bad (Hint: DOM XSS)</h4>
+<p>What's also frustrating about these pieces of code is that analyzing it requires you to manually trace every function call and variable back to its definition to see whether it is indeed tainted by user input.</p>
+<p>With code changing frequently those reviews don't really scale. One possible approach is to avoid using <code>innerHTML</code> for good. Even though this idea sounds a bit naive, I have dived into the world of automated HTML parsing and code generation to see how feasible it is.</p>
+<h4>Enter html2dom</h4>
+<p>For the sake of experimentation (and solving this neatly self-contained problem), I have created <a href="https://github.com/freddyb/html2dom">html2dom</a>. html2dom is a tiny library that accepts a HTML string and returns alternative JavaScript source code. Example:
+<code>&lt;p id="greeting"&gt;Hello &lt;b&gt;World&lt;/b&gt;&lt;/p&gt;</code></p>
+<p>Will yield this (as a string).</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">docFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">createDocumentFragment</span><span class="p">();</span>
+<span class="c1">// this fragment contains all DOM nodes</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">greeting</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">createElement</span><span class="p">(</span><span class="s1">&#39;P&#39;</span><span class="p">);</span>
+<span class="nx">greeting</span><span class="p">.</span><span class="nx">setAttribute</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;greeting&quot;</span><span class="p">);</span>
+<span class="nx">docFragment</span><span class="p">.</span><span class="nx">appendChild</span><span class="p">(</span><span class="nx">greeting</span><span class="p">);</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">createTextNode</span><span class="p">(</span><span class="s2">&quot;Hello &quot;</span><span class="p">);</span>
+<span class="nx">greeting</span><span class="p">.</span><span class="nx">appendChild</span><span class="p">(</span><span class="nx">text</span><span class="p">);</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">createElement</span><span class="p">(</span><span class="s1">&#39;B&#39;</span><span class="p">);</span>
+<span class="nx">greeting</span><span class="p">.</span><span class="nx">appendChild</span><span class="p">(</span><span class="nx">b</span><span class="p">);</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">text_0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">createTextNode</span><span class="p">(</span><span class="s2">&quot;World&quot;</span><span class="p">);</span>
+<span class="nx">b</span><span class="p">.</span><span class="nx">appendChild</span><span class="p">(</span><span class="nx">text_0</span><span class="p">);</span>
+</code></pre></div>
+
+<p>As you can see, html2dom tries to use meaningful variable names to make the code readable. If you want, you can try the <a href="http://freddyb.github.io/html2dom/">demo here</a>. Now we could also just replace the <code>"World"</code> string with a JavaScript variable. It cannot do any harm as it is always rendered as text.</p>
+<h4>When it comes to HTML parsers, you <em>also</em> don't want to write your own.</h4>
+<p>Luckily, there are numerous very useful APIs which helped making the development of html2dom fairly easy. First there is the <a href="https://developer.mozilla.org/en-US/docs/Web/API/DOMParser">DOMParser API</a> which took care about all HTML parsing. Using the DOM tree output, I could just iterate over all nodes and their children to emit a specific piece of JavaScript depending on its type (e.g., HTML or Text). For this, the <a href="https://developer.mozilla.org/en-US/docs/DOM/Document.createNodeIterator">nodeIterator</a> turned out really valuable.</p>
+<p>I have also written a few <a href="http://freddyb.github.io/html2dom/tests/tests.html">unit tests</a>, so if you want to start messing with my code, I suggest you start by checking them out right away.</p>
+<h4>Known Bugs &amp; Security</h4>
+<p>This tool doesn't really save you from all of your troubles. But if you can, make sure that the user input is always somewhere in a text node, then html2dom can prevent you from a great deal of harm. <a href="http://freddyb.github.io/html2dom/">Give it a try!</a></p>
+<h4>On the horizon</h4>
+<p>I have also been looking at attempts to rewrite potentially dangerous JavaScript automatically. This is at an early stage and still experimental but you can look at a <a href="http://people.mozilla.com/%7Efbraun/falafler/">prototype</a> here</p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/html2dom.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

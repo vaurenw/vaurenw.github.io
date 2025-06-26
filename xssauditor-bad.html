@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: Chrome switching the XSSAuditor to filter mode re-enables old attack</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="Chrome switching the XSSAuditor to filter mode re-enables old attack" />
+ <meta property="og:title" content="Chrome switching the XSSAuditor to filter mode re-enables old attack"/>
+ <meta property="og:url" content="https://vaurenw.github.io/xssauditor-bad.html"/>
+ <meta name="twitter:title" content="Chrome switching the XSSAuditor to filter mode re-enables old attack" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/xssauditor-bad.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>Chrome switching the XSSAuditor to filter mode re-enables old attack</h1>
+  <time datetime="2019-05-10T00:00:00+02:00">Fri 10 May 2019</time>
+</header>
+<article>
+    <p><em>Update: In July 2019, <a href="https://groups.google.com/a/chromium.org/forum/#!searchin/blink-dev/xssauditor|sort:date/blink-dev/TuYw-EZhO9g/5xHgUfaBAwAJ">Chrome developers announced that they are going
+to remove XSSAuditor</a>.
+You can follow <a href="https://bugs.chromium.org/p/chromium/issues/detail?id=968591">their bug tracker
+here</a>.</em></p>
+<p>Recently, Google Chrome changed the default mode for their Cross-Site Scripting
+filter <em>XSSAuditor</em> from <code>block</code> to <code>filter</code>. This means that instead of
+blocking the page load completely, XSSAuditor will now continue rendering the
+page but modify the bits that have been detected as an XSS issue.</p>
+<p>In this blog post, I will argue that the filter mode is a dangerous approach
+by re-stating the arguments from the whitepaper titled
+<a href="https://frederik-braun.com/xfo-clickjacking.pdf">X-Frame-Options: All about
+Clickjacking?</a>
+that I co-authored with <a href="https://heideri.ch/">Mario Heiderich</a> in
+2013.</p>
+<p>After that, I will elaborate XSSAuditor's other shortocmings and revisit
+the history of back-and-forth in its default settings.
+In the end, I hope to convince you that XSSAuditor's contribution is
+not just neglegible  but really negative and should therefore be removed
+completely.</p>
+<hr>
+
+<h2>JavaScript à la Carte</h2>
+<p>When you allow websites to frame you, you basically give them full permission to
+decide, what part of JavaScript of your very own script can be executed and what
+cannot. That sounds crazy right? So, let’s say you have three script blocks on
+your website. The website that frames you doesn’t mind two of them - but really
+hates the third one. maybe a framebuster, maybe some other script relevant for
+security purposes. So the website that frames you just turns that one script
+block off - and leave the other two intact. Now how does that work?</p>
+<p>Well, it’s easy. All the framing website is doing, is using the browser’s XSS
+filter to selectively kill JavaScript on your page. This has been working in IE
+some years ago but doesn’t anymore - but it still works perfectly fine in
+Chrome. Let’s have a look at an annotated code example.</p>
+<p>Here is the evil website, framing your website on example.com and sending
+something that looks like an attempt to XSS you! Only that you don’t have any
+XSS bugs. The injection is fake - and resembles a part of the JavaScript that
+you actually use on your site:</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">iframe</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;//example.com/index.php?code=%3Cscript%20src=%22/js/security-libraries.js%22%3E%3C/script%3E&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">iframe</span><span class="p">&gt;</span>
+</code></pre></div>
+
+<p>Now we have your website. The content of the code parameter above is part of
+your website anyway - no injection here, just a match between URL and site
+content:</p>
+<div class="highlight"><pre><span></span><code><span class="cp">&lt;!doctype html&gt;</span>
+<span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span>HELLO<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/js/security-libraries.js&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="c1">// assumes that the libraries are included</span>
+<span class="p">&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</code></pre></div>
+
+<p>The effect is compelling. The load of the security libraries will be blocked by
+Chrome’s XSS Auditor, violating the assumption in the following script block,
+which will run as usual.</p>
+<h2>Existing and Future Countermeasures</h2>
+<p>So, as we see defaulting to <code>filter</code> was a bad decision and it can be overriden
+with the <code>X-XSS-Protection: 1; mode=block</code> header. You could also disallow
+websites from putting you in an iframe with <code>X-Frame-Options: DENY</code>, but it
+still leaves an attack vector as your websites could be opened as a top-level
+window. (The <code>Cross-Origin-Opener-Policy</code> will help, but does not yet
+ship in any major browser). Surely, Chrome might fix that one bug and stop
+<a href="https://portswigger.net/blog/exposing-intranets-with-reliable-browser-based-port-scanning">exposing <code>onerror</code> from internal error pages
+</a>.
+But that's not enough.</p>
+<h2>Other shortcomings of the XSSAuditor</h2>
+<p>XSSAuditor has numerous problems in detecting XSS. In fact, there are so many
+that the <a href="https://chromium.googlesource.com/chromium/src/+/master/docs/security/faq.md#are-xss-filter-bypasses-considered-security-bugs">Chrome Security Team does not treat bypasses as security bugs in
+Chromium</a>.
+For example, the XSSAuditor scans parameters individually and thus allows for
+easy bypasses on pages that have multiple injections points, as an attacker can
+just split their payload in half.
+Furthermore, XSSAuditor is only relevant for reflected XSS vulnerabilities. It
+is completely useless for other XSS vulnerabilities like persistent XSS,
+Mutation XSS (mXSS) or DOM XSS. DOM XSS has become more prevalent with the
+rise of JavaScript libraries and frameworks such as jQuery or AngularJS.
+In fact, a 2017 research paper about exploiting DOM XSS through so-called
+<em>script gadgets</em> discovered that <a href="https://github.com/google/security-research-pocs/blob/master/script-gadgets/ccs_gadgets.pdf">XSSAuditor is easily bypassed in 13 out of 16
+tested JS frameworks
+</a></p>
+<h2>History of XSSAuditor defaults</h2>
+<p>Here's a rough timeline</p>
+<ul>
+<li><em>2010</em> - Paper "Regular expressions considered harmful in client-side XSS
+filters" published. Outlining design of the XSSAuditor, Chrome ships it
+with default to <code>filter</code></li>
+<li><em>2016</em> - <a href="https://groups.google.com/a/chromium.org/forum/#!msg/blink-dev/aZsNygF84JM/86EbD_q0CAAJ">Chrome switching to <code>block</code> due to the attacks with non-existing
+injections</a></li>
+<li><em>November 2018</em> - <a href="https://portswigger.net/blog/exposing-intranets-with-reliable-browser-based-port-scanning">Chrome error pages can be observed in an iframe, due to
+the <code>onerror</code> event being triggered
+twice</a>,
+which allows for <a href="https://github.com/xsleaks/xsleaks/wiki/Browser-Side-Channels#xss-filters">cross-site leak attacks
+</a>.</li>
+<li><em>January 2019</em> (hitting Chrome stable in April 2019) - <a href="https://chromium-review.googlesource.com/c/chromium/src/+/1417872">XSSAuditor switching
+back to
+<code>filter</code></a></li>
+</ul>
+<h2>Conclusion</h2>
+<p>Taking all things into considerations, I'd highly suggest removing the
+XSSAuditor from Chrome completely. In fact, <a href="https://blogs.windows.com/windowsexperience/2018/07/25/announcing-windows-10-insider-preview-build-17723-and-build-18204/">Microsoft has announced they'd
+remove the XSS filter from Edge</a>
+last year. Unfortunately, a <a href="https://bugs.chromium.org/p/chromium/issues/detail?id=898081&amp;desc=2">suggestion to retire XSSAuditor initiated by the
+Google Security Team</a> was
+eventually dismissed by the Chrome Security Team.</p>
+<p><footnote><small>
+This blog post does not represent the position of my employer.<br>
+Thanks to Mario Heiderich for providing valuable feedback:
+Supporting arguments and useful links are his. Mistakes are all mine.
+</small></footnote></p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/xssauditor-bad.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

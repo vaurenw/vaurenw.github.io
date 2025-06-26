@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: Modern solutions against cross-site attacks</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="Modern solutions against cross-site attacks" />
+ <meta property="og:title" content="Modern solutions against cross-site attacks"/>
+ <meta property="og:url" content="https://vaurenw.github.io/modern-solutions-xsleaks.html"/>
+ <meta name="twitter:title" content="Modern solutions against cross-site attacks" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/modern-solutions-xsleaks.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>Modern solutions against cross-site attacks</h1>
+  <time datetime="2024-11-26T00:00:00+01:00">Tue 26 November 2024</time>
+</header>
+<article>
+    <p><em>NB: This is the <code>text/html</code> version of my talk from the German OWASP Day 2024 in Leipzig earlier this month. If you prefer, there is also a <a href="https://media.ccc.de/v/god2024-56286-modern-solutions-against-c">video from the event</a>.</em></p>
+<p><img alt="Title Slide. Firefox log in the top right. Headline is &quot;Dealing with Cross-Site Attacks&quot;. Presentation from Frederik Braun held at German OWASP Day 2024 in Leipzig" class="slide" src="images/god24-xs-attacks/large-0.jpg"></p>
+<p>This article is about cross-site leak attacks and what
+recent defenses have been introduced to counter them. I also want to
+finally answer the question why web security best practices is always
+opt-in and finally how YOU can get increased security controls.</p>
+<p>The <a href="https://www.w3.org/TR/html-design-principles/">W3C HTML Design Principles</a> state that</p>
+<blockquote>
+<p>"When considering changes to legacy features or behavior... ... the benefit of the
+proposed change should be weighed against the likely cost of breaking
+content [...] In some cases, it may be desirable to make a nonstandard
+feature or behavior part of the conforming language, if it satisfies a
+valid use case."</p>
+</blockquote>
+<p>So, in essence, this means that it should be avoided or at least be very
+hard to remove APIs from the web, once they have been widely used.</p>
+<h2><code>XMLHttpRequest</code></h2>
+<p>A great example is for this is <code>XML·Http·Request</code> (or XHR): The first
+iteration of this API started with Microsoft building a proprietary
+feature into IE 5 to dynamically make HTTP requests. It became widely
+used and other browsers defined a standard around it - retroactively in
+2006. I'm sure many readers have heard of or used <code>XMLHttpRequest</code>.
+Though I bet very few of you actually use it for XML. And, we actually
+have a better function. Remember what that one's called? Yep, <code>fetch</code>.
+Can you guess how long we've had fetch()? Almost 10 years. And browsers
+are still supporting XHR - they likely will keep doing so forever.</p>
+<h3>The real world does not reflect best practices</h3>
+<p>In essence, the real world is always going to lag behind best practices.
+That means, whenever you want to protect your website against an attack,
+you will have to step up and do something on your own.</p>
+<p>And this brings us to <strong>Cross-Site Leaks (xsleaks)</strong>: The issue with xsleaks - a we are about to
+see - is that a lot of these attacks are very site-specific. Many of the
+attacks in the xsleaks category depend on certain site behavior, like
+for example timing attacks. Instead, we find a lot of usage of an API
+that is totally fine and secure for some websites but may be horribly
+insecure for others. xsleaks happen in the gray area, between "secure
+API" and "insecure API".</p>
+<h3>Detecting login status by leaking the amount of frames across origins</h3>
+<p><img alt="Diagram showing a browser window and a popup. They are both colored in light blue (cyan) to indicate they are in the same origin. They have full bidirection access to each other." class="slide" src="images/god24-xs-attacks/large-5.jpg"></p>
+<p>Popups are a good example. As you will see in the diagram above, the return value of <code>window.open()</code>
+gives a reference to the popup window. And the popup gets a reference to
+the main window with the <code>opener</code> variable. If the pop-up is
+same-origin, there is full DOM access through both of these window
+handles.</p>
+<p><img alt="Diagram showing a cyan-colored browser window and a yellow popup. The colors indicate that they are in different origins. They do have bidirectional access on a limited set of properties. As an example, we list the &quot;frame&quot; property." class="slide" src="images/god24-xs-attacks/large-6.jpg"></p>
+<p>For cross-origin popups (yellow window in the picture above), access is already restricted
+but some stuff is still leaking: An example that might be somewhat odd
+is that the <code>length</code> property can be used to identify how many frames a
+window handle has. And just because of how some websites work, the
+amount of frames can be used for login detection. Basically, whether you
+are logged in or not results in some specific amount of frames, which is
+the same value for all users and thus a worthy signal for attackers.</p>
+<p>The authors of the <a href="https://dl.acm.org/doi/pdf/10.1145/3576915.3616598">research paper "Finding All Cross-Site Needles in
+the DOM Stack: A Comprehensive Methodology for the Automatic XS-Leak
+Detection in Web
+Browsers"</a> found that on 20 out of the top 50 web pages, they could
+easily detect if the user was logged in.</p>
+<p>But there are many more things that can leak across origins. The paper
+<a href="https://xsinator.com">XSinator.com: From a Formal Model to the Automatic Evaluation of
+Cross-Site Leaks in Web Browsers</a> by the same authors shows that there are countless ways
+to leak HTTP Status Codes, Response Headers, the amount of redirects
+that URL experience, the length of a URL after redirects and so much
+more.</p>
+<p>So, in essence, there are a lot of cross-site leaks out there. They
+might use images, videos, iframes, popups. These are all widely used and
+important APIs that browsers can't directly remove or modify from the
+web.</p>
+<h3>What if we wanted to deprecate web APIs?</h3>
+<p>Let's take a quick detour and consider what it would look like to remove
+an API in a distributed system? The way you usually deal with that is by
+following roughly these four steps.</p>
+<ol>
+<li>You write a new improved function</li>
+<li>You disallow new code to use the old function (through a linter,
+    static analysis, etc.)</li>
+<li>You start to refactor all existing code to use the new API. (You may
+    have to iterate, change the new API, work with mismatched
+    expectations. You may have to seek code review from a wide group of
+    people and it will take a lot of time.
+    But eventually - eventually! - you will get there. Because you
+    removed new usage of the old API. If you were to track this in a
+    line graph, the line plotting usage of the bad API would only know
+    one direction. Down.)</li>
+<li>Eventually, you will be able to remove the bad API completely.</li>
+</ol>
+<p>However, what would a deprecation on the web look like? Sure, we can
+provide a new API. Of course, we can also discourage new usage of a bad
+API though developer tools, warnings or advocacy. Maybe even reach out
+to big websites. But essentially, you will never be able to control what
+new code is written. In fact, there is <em>no</em> conceivable way to refactor
+or rewrite existing code on the web.
+So, we can not easily deprecate or discourage people from writing new code using bad APIs.
+We simply can not remove bad APIs as long as they are widely used.</p>
+<p>The best you can do is provide an opt-out: Encourage websites to not
+make use of the bad APIs and allow them to state somewhere <em>a priori</em>
+such that the browser may enable some new protections for them.</p>
+<h2>Security headers are hope</h2>
+<p>However, there is hope. I believe that these options are worth it. And
+there is value in looking into your site and adopting new protections,
+when you can.</p>
+<h3><code>Cross-Origin-Opener-Policy</code> (COOP)</h3>
+<p><img alt="The diagram from above, but with different effects due to Cross-Origin-Opener-Policy. Light blue window and two popups. The light blue popup gets full DOM access as before. The yellow (cross-origin) popup gets no window handle at all." class="slide" src="images/god24-xs-attacks/large-14.jpg"></p>
+<p>Speaking of these optional controls: There is a HTTP response header
+called <code>Cross-Origin-Opener-Policy</code> (COOP) that allows your website to
+opt out of providing window handles in cross-origin contexts.</p>
+<p>If you provide a value of <code>same-origin</code>, then all popups for your own
+website will continue to work. However, any cross-site popup situation
+will lead to <em>removed</em> window handles.</p>
+<p>As we have seen before, popups are not the only source of cross-site
+leaks. So now, you wonder, how can you prevent your web page and its
+content from being embedded on an attacker website.</p>
+<h3><code>Cross-Origin-Resource-Policy</code> (CORP)</h3>
+<p><img alt="Diagram of a web page requesting things from an asset CDN, which is using Cross-Origin-Resource-Policy. Therefore the browser will block all loads from a third-party sites." class="slide" src="images/god24-xs-attacks/large-17.jpg"></p>
+<p>Preventing your content from being embedded cross-site is easily done
+with <code>Cross-Origin-Resource-Policy</code> (CORP) and a value of
+e.g., <code>same-site</code>. In this case, you can rely that all sorts of embeds
+are disallowed at the browser level (hey, anyone remember "hot link"
+detections?). However, this might be too strict and not nuanced enough,
+for example if some resources are public or are supposed to be used in some
+contexts but not all.</p>
+<h3>Fetch metadata request headers</h3>
+<p>But maybe these controls are not granular enough for you. Maybe, you
+want to control on more aspects than just the origin or the site. Then
+<em>Fetch Metadata Request Headers</em> are for you.</p>
+<p>If you have recently inspected
+a HTTP GET request in the browser, you might have noticed that it is
+sending <em>a lot of headers</em>. These <code>Sec-Fetch</code>-prefixed headers provide a
+great level of detail about what the browser is actually trying to do
+with the resource it is requesting. Here is an example.</p>
+<div class="highlight"><pre><span></span><code><span class="nf">GET</span> <span class="nn">/</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">2</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">example.com</span>
+<span class="na">Sec-Fetch-Dest</span><span class="o">:</span> <span class="l">document</span>
+<span class="na">Sec-Fetch-Mode</span><span class="o">:</span> <span class="l">navigate</span>
+<span class="na">Sec-Fetch-Site</span><span class="o">:</span> <span class="l">none</span>
+<span class="na">Sec-Fetch-User</span><span class="o">:</span> <span class="l">?1</span>
+</code></pre></div>
+
+<p>The headers will provide information about the <a href="https://fetch.spec.whatwg.org/#destination-table">fetch
+destination</a> (e.g., <code>img</code> element, <code>script</code> element etc.), the
+<a href="https://fetch.spec.whatwg.org/#concept-request-mode">request
+mode</a> (e.g., cors) and the <code>site</code> (e.g., whether the request
+was same-site, same-origin or cross-origin). <strong>This can be used to build really granular security controls.</strong>
+In essence, by using Fetch metadata, you may build a protection that allows all sort of
+same-site requests similar to what <code>CORP</code> (above) has already allowed.</p>
+<p><img alt="Diagram of a web page requesting things from an asset CDN. The web page is cross-origin so the asset CDN is inspecting the fetch metadata and controlling what load to allow. For example, it is allowing an image load but disallowing scripts and iframes." class="slide" src="images/god24-xs-attacks/large-26.jpg"></p>
+<p>However, you can provide more fine-grained access to some resources for
+cross-origin content. For example, image inclusion might just be fine.
+Whereas you may not want cross-origin content to load your scripts or
+put your resources into an <code>iframe</code>.</p>
+<h3>An interactive Demo</h3>
+<p>If you want to see a demo of this, try opening my test page
+<a href="https://noframes.on.web.security.plumbing/">https://noframes.on.web.security.plumbing/</a> Then open devtools and try loading that URL from an
+<code>embed</code>, <code>object</code> or <code>iframe</code> element. Like in <a href="https://software.hixie.ch/utilities/js/live-dom-viewer/?saved=13285">this demo page from Live
+DOM
+Viewer</a>.</p>
+<p>Do you see how it doesn't allow to be embedded?
+If you take a look at the network tab in devtools (and refresh),
+you will also notice that the request headers are indeed different for
+each of these embedding attempts. Note, how the browser is sending all of
+this specific metadata.</p>
+<p>Going further, take a look at the <a href="https://noframes.on.web.security.plumbing/?source">PHP source code for my demo
+page</a>. It's not brilliant,
+but that's my point. You can build these kinds of protections with very little
+code and they will work. (My code is for a "fun" interactive demo. Ideally, you would not build a
+block-list of preventable request destinations. You should build an
+allow-list of acceptable destinations).</p>
+<div class="highlight"><pre><span></span><code><span class="cp">&lt;?php</span>
+<span class="nv">$headers</span> <span class="o">=</span> <span class="nb">getallheaders</span><span class="p">();</span>
+<span class="k">if</span> <span class="p">(</span><span class="nb">isset</span><span class="p">(</span><span class="nv">$headers</span><span class="p">[</span><span class="s1">&#39;Sec-Fetch-Dest&#39;</span><span class="p">]))</span> <span class="p">{</span>
+    <span class="nv">$dest</span> <span class="o">=</span> <span class="nv">$headers</span><span class="p">[</span><span class="s1">&#39;Sec-Fetch-Dest&#39;</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">else</span> <span class="p">{</span>
+    <span class="k">exit</span><span class="p">(</span><span class="s2">&quot;This does not appear to be a valid browser request.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="c1">// Frame protection</span>
+<span class="nv">$forbidden_destinations</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;iframe&#39;</span> <span class="o">=&gt;</span> <span class="s2">&quot;This page can not be embedded via iframe elements.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="s1">&#39;object&#39;</span> <span class="o">=&gt;</span> <span class="s2">&quot;This page can not be embedded via object elements.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="s1">&#39;embed&#39;</span> <span class="o">=&gt;</span> <span class="s2">&quot;This page can not be embedded via embed elements.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="s1">&#39;fencedframe&#39;</span> <span class="o">=&gt;</span> <span class="s2">&quot;Sorry, but fencedframs are not a thing.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="s1">&#39;frame&#39;</span> <span class="o">=&gt;</span> <span class="s2">&quot;Wow, the 90s called and want their frames back. No can do, friend.</span><span class="se">\n</span><span class="s2">&quot;</span>
+<span class="p">];</span>
+<span class="c1">// Note, this is supposed to be an educational demo explaining how the</span>
+<span class="c1">// ... destination is reacted to by the server.</span>
+<span class="c1">// If you do this at home, convert the check into an allow list instead.</span>
+<span class="k">if</span> <span class="p">(</span><span class="nb">isset</span><span class="p">(</span><span class="nv">$forbidden_destinations</span><span class="p">[</span><span class="nv">$dest</span><span class="p">]))</span> <span class="p">{</span>
+    <span class="k">exit</span><span class="p">(</span><span class="nv">$forbidden_destinations</span><span class="p">[</span><span class="nv">$dest</span><span class="p">]);</span>
+<span class="p">}</span>
+<span class="cp">?&gt;</span>
+</code></pre></div>
+
+<p>This kind of protection is also called a <a href="https://xsleaks.dev/docs/defenses/isolation-policies/resource-isolation/">"resource isolation
+policy"</a>.</p>
+<h3>Closing thoughts</h3>
+<p>Security is opt-in, but the browser has your back and there are nice
+ways to improve security gradually.
+If you want to improve security <strong>you have to move</strong>.</p>
+<h5>References:</h5>
+<ul>
+<li><a href="https://xsleaks.dev/">xsleaks.dev</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy">Cross-Origin-Opener-Policy on
+    MDN</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Cross-Origin_Resource_Policy">Cross-Origin Resource Policy (CORP) on
+    MDN</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy">Cross-Origin-Embedder-Policy on
+    MDN</a></li>
+<li><a href="https://web.dev/articles/security-headers">Security headers quick reference on
+    web.dev</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Glossary/Fetch_metadata_request_header">Fetch metadata request header on
+    MDN</a></li>
+<li><a href="https://web.dev/articles/fetch-metadata">Protect your resources from web attacks with Fetch Metadata on
+    web.dev</a></li>
+<li><a href="https://secmetadata.appspot.com/xss?value=your_value_here">Fetch Metadata Request Headers
+    playground</a></li>
+</ul>
+<p>Thank you for reading.</p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/modern-solutions-against-cross-site-attacks.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

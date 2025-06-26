@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: Understanding Web Security Checks in Firefox (Part 1)</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="Understanding Web Security Checks in Firefox (Part 1)" />
+ <meta property="og:title" content="Understanding Web Security Checks in Firefox (Part 1)"/>
+ <meta property="og:url" content="https://vaurenw.github.io/understanding-web-security-checks-in-firefox-part-1.html"/>
+ <meta name="twitter:title" content="Understanding Web Security Checks in Firefox (Part 1)" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/understanding-web-security-checks-in-firefox-part-1.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>Understanding Web Security Checks in Firefox (Part 1)</h1>
+  <time datetime="2020-06-10T00:00:00+02:00">Wed 10 June 2020</time>
+</header>
+<article>
+    <p><em>This blog post has first appeared on the <a href="https://blog.mozilla.org/attack-and-defense/2020/06/10/understanding-web-security-checks-in-firefox-part-1/">Mozilla Attack &amp; Defense blog</a> and was co-authored with Christoph Kerschbaumer</em></p>
+<p>This is the first part of a blog post
+series that will allow you to understand how Firefox implements Web
+Security fundamentals, like the <a href="https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy">Same-Origin
+Policy</a>.
+This first post of the series covers the architectural design,
+terminology, and introduces core interfaces that our implementation of
+the Same-Origin Policy relies on:
+<a href="https://searchfox.org/mozilla-central/source/caps/nsIPrincipal.idl">nsIPrincipal</a>
+and
+<a href="https://searchfox.org/mozilla-central/source/netwerk/base/nsILoadInfo.idl">nsILoadinfo</a>.</p>
+<h2>Background on Web Security Checks</h2>
+<p>Whenever Firefox on Desktop or Android
+fetches a resource from the web, Firefox performs a variety of web
+security checks to ensure web pages can not harm end users by performing
+malicious actions. For example, when loading a sub-resource from a web
+page, Firefox ensures that its URL is not targeting the local file
+system with a file:// scheme. Before diving deeper into Firefox Security
+internals we have to introduce the term 
+Security Principal*
+, which is key for understanding how Firefox
+enforces web security checks.</p>
+<h2>The Security Contexts in Firefox</h2>
+<p>All web related security checks within
+Firefox are evaluated based on the security concept of a Principal.
+Briefly, a Principal reflects a security context. E.g., when visiting
+https://example.com a *
+Content-Principal*
+of https://example.com reflects the security
+context of that page. More precisely, Firefox captures the security
+context using one of the following four types of Principals:</p>
+<ol>
+<li>
+<p><strong>Content-Principal</strong></p>
+<p>The <a href="https://html.spec.whatwg.org/multipage/origin.html">HTML
+specification</a>
+associates an origin with a Document or a Worker. That origin
+information is encapsulated within a Content-Principal and reflects
+the security context for all web-hosted resources. E.g. when loading
+the web page https://example.com, then Firefox creates a
+Content-Principal encapsulating origin information of
+https://example.com which then reflects the security context of that
+web page.</p>
+</li>
+<li>
+<p><strong>Null-Principal</strong><br>
+    In special cases, websites are
+    never same-origin with anything else. Two such cases are iframes
+    with a sandbox attribute and documents loaded with a data: URI. The
+    HTML specification calls the origin of those pages an <a href="https://html.spec.whatwg.org/multipage/origin.html#concept-origin-opaque">opaque
+    origin</a>.
+    Our implementation uses a  *
+   Null-Principal* 
+   for reflecting the security context of
+    an opaque origin. In contrast to a Content-Principal which
+    internally maps to the origin of the resource, a Null-Principal uses
+    a custom scheme and host, e.g. moz-nullprincipal:{0bceda9f-…}, where
+    the host is represented as a UUID. So, when loading an iframe with a
+    sandbox attribute Firefox internally generates a Null-Principal to
+    reflect that security context. Please note that a Null-Principal is
+    not equal to any other Principal and also not equal to any other
+    Null-Principal. E.g., a data: URI iframe is not same-origin with
+    another data: URI iframe because both security contexts are mapped
+    through different Null-Principals.</p>
+</li>
+<li>
+<p><strong>System-Principal</strong></p>
+<p>The *
+   System-Principal*
+is used for the browser’s user
+interface, commonly referred to as “browser chrome”. An example of a
+page with these extra privileges is “about:support”. The
+System-Principal is shared across all privileged resources, and
+implemented as a Singleton. Since browser chrome code does not rely
+on a URI, the System-Principal internally also does not map to an
+origin. The System-Principal passes all security checks.</p>
+</li>
+<li>
+<p><strong>Expanded-Principal</strong></p>
+<p>A browser extension is more privileged than normal web pages, but
+must also be able to assume the security context of a website.
+Hence, an *
+   Expanded-Principal<em>
+is best understood as a *
+   list of principals</em>
+to match the security needs for
+<a href="https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Anatomy_of_a_WebExtension#Content_scripts">Content
+Scripts</a>
+in Firefox Extensions. When creating an Expanded-Principal Firefox
+takes multiple existing Principals, storing them in an allowlist.
+The security checks on the Expanded-Principal are then implemented
+as a loop through this allowlist of principals.</p>
+</li>
+</ol>
+<h2>The Loading Life-Cycle in Firefox</h2>
+<p>Whenever a page performs a request,
+Firefox internally creates an
+<a href="https://searchfox.org/mozilla-central/source/netwerk/base/nsIChannel.idl">nsIChannel</a>
+object (which acts as the transport
+algorithm, such as HTTP(S), WebSocket etc.). Amongst other things an
+<a href="https://searchfox.org/mozilla-central/source/netwerk/base/nsIChannel.idl">nsIChannel</a>
+consists of an
+<a href="https://searchfox.org/mozilla-central/source/netwerk/base/nsIURI.idl">nsIURI</a>,
+which is the URI to be loaded, and an
+<a href="https://searchfox.org/mozilla-central/source/netwerk/base/nsILoadInfo.idl">nsILoadInfo</a>
+object. The latter holds all security
+relevant attributes including security flags indicating what security
+checks need to be performed and the aforementioned Principal. It is
+worth emphasizing that the loadinfo – including the Principal – gets
+frozen at creation time and remains attached to the
+<a href="https://searchfox.org/mozilla-central/source/netwerk/base/nsIChannel.idl">nsIChannel</a>
+instance even if the load encounters
+any kind of redirect, e.g. a 302. The last step before Firefox starts
+loading bits over the network is performing all relevant security checks
+within the function
+<a href="https://searchfox.org/mozilla-central/rev/501eb4718d73870892d28f31a99b46f4783efaa0/netwerk/base/nsIChannel.idl#189">asyncOpen()</a>
+of any
+<a href="https://searchfox.org/mozilla-central/source/netwerk/base/nsIChannel.idl">nsIChannel</a>
+implementation.</p>
+<h2>Enforcing Web Security Checks in Firefox</h2>
+<p>Firefox enforces all <a href="https://blog.mozilla.org/security/2016/11/10/enforcing-content-security-by-default-within-firefox/">web security
+checks by
+default</a>
+by consulting a centralized
+<a href="https://searchfox.org/mozilla-central/source/dom/security/nsContentSecurityManager.cpp">ContentSecurityManager</a>.
+As mentioned, every
+<a href="https://searchfox.org/mozilla-central/rev/501eb4718d73870892d28f31a99b46f4783efaa0/netwerk/base/nsIChannel.idl#189">asyncOpen()</a>
+implementation internally calls
+<a href="https://searchfox.org/mozilla-central/rev/501eb4718d73870892d28f31a99b46f4783efaa0/dom/security/nsContentSecurityManager.cpp#940">doContentSecurityCheck()</a>
+which then performs all relevant web
+security checks e.g., <a href="https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy">Same-Origin
+Policy</a>,
+<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP">Content Security
+Policy</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content">Mixed
+Content
+Blocking</a>.</p>
+<p>To perform all relevant security
+checks Firefox has to take *
+multiple* 
+principals into consideration, most notably
+the
+<a href="https://searchfox.org/mozilla-central/rev/501eb4718d73870892d28f31a99b46f4783efaa0/netwerk/base/nsILoadInfo.idl#254">loadingPrincipal</a>
+and the
+<a href="https://searchfox.org/mozilla-central/rev/501eb4718d73870892d28f31a99b46f4783efaa0/netwerk/base/nsILoadInfo.idl#304">triggeringPrincipal</a>. 
+The loadingPrincipal is the
+principal of the document where the result of the load will be used. The
+triggeringPrincipal is the
+security context that actually triggered the URL to load. In most cases
+the loadingPrincipal and the triggeringPrincipal are identical. One
+example where loadingPrincipal and triggeringPrincipal differ is a
+cross-origin CSS file requesting an image. In that case the
+loadingPrincipal is a Content-Principal of the page where the image will
+be loaded into, and the triggeringPrincipal is a cross-origin
+Content-Principal of the CSS file.</p>
+<p>Taking the loadingPrincipal and the
+triggeringPrincipal into account, Firefox performs security checks in an
+*asymmetric *
+fashion. More precisely, a Principal may
+have access to another Principal but not necessarily vice versa. This is
+also why security checks are not implemented as equality checks.
+Instead, Firefox relies on the concept of ‘subsumes’. In more detail,
+Firefox uses aPrincipal-&gt;Subsumes(aOtherPrincipal), to see if
+aPrincipal has access to
+aOtherPrincipal.</p>
+<p>The aforementioned System-Principal
+subsumes all other principals, but a Null-Principal basically fails all
+security checks and is only same-origin with itself. A Content-Principal
+is same- origin to another Content-Principal if <a href="https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy">scheme, host and
+port</a>
+are the same for both. If so, Firefox
+allows the load.</p>
+<h2>An illustrative example of a Web Security Check</h2>
+<p>Let’s assume you visit the web page https://example.com and that page
+then loads library.js from https://foo.com. For the JavaScript load to
+occur Firefox will internally create an nsIChannel with the URL of
+https://foo.com/library.js.</p>
+<p><img src="images/sec_by_default-600x426.jpg" width="600" height="426" /></p>
+<p>As illustrated, the loadinfo for that load would include the following
+information: A triggeringPrincipal of https://example.com, because the
+page https://example.com actually triggered the load to occur. The
+loadingPrincipal would also be set to https://example.com because the
+result of the JS load will be used in the security context of
+https://example.com. The ContentPolicy type will be set to TYPE_SCRIPT
+which e.g., allows mapping of content type to Content Security Policy
+directives (in this particular case to the script-src directive).
+Finally, the security flags would be set to ALLOW_CROSS_ORIGIN because
+JavaScript files are allowed to be loaded cross origin.</p>
+<p>While in that particular case Firefox would allow the cross origin load,
+it would still ensure that the web page is not trying to access the
+local file system of the end user.</p>
+<h2>Going Forward</h2>
+<p>In this blog post, we explained how Firefox enforces Web Security
+checks, like the Same-Origin Policy. In the next post we’ll explain how
+to enable available logging mechanisms which allow for visual inspection
+of every web security check performed. We hope that this introduction
+will aid security research as well as bug bounty hunting and sparks your
+curiosity to go further, even contribute to Mozilla and the Open Web.</p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/understand-websec-firefox1.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

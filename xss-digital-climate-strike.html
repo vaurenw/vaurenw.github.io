@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: XSS in The Digital #ClimateStrike Widget</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="XSS in The Digital #ClimateStrike Widget" />
+ <meta property="og:title" content="XSS in The Digital #ClimateStrike Widget"/>
+ <meta property="og:url" content="https://vaurenw.github.io/xss-digital-climate-strike.html"/>
+ <meta name="twitter:title" content="XSS in The Digital #ClimateStrike Widget" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/xss-digital-climate-strike.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>XSS in The Digital #ClimateStrike Widget</h1>
+  <time datetime="2019-09-23T00:00:00+02:00">Mon 23 September 2019</time>
+</header>
+<article>
+    <p>Life keeps me busy, which is why this blog is seeing less and less publications. It's also the reason why I couldn't join the Global Climate Strike on September 20th. Friends have pointed me towards the <a href="https://digital.globalclimatestrike.net/"><em>Digital</em> Global Climate Strike</a>, where you can embed a script in your website and it will "go dark" on the strike day, drawing attention to the issue and calling people for action.</p>
+<p>The widget waits until September 20th 2019 and expands to a big green banner that would block the whole page. Now that the strike is over, it's just a no-op.</p>
+<p><img alt="mock-up of protesting web page" src="images/DCS_Mockup_Full2.png"></p>
+<p>Many organizations and websites took part in the Digital Global Climate Strike. Among them: tumblr, wordpress, imgur, wikimedia, boingboing, kickstarter, greenpeace, bittorrent, change.org, Tor project and many many more.</p>
+<p><img alt="list of participants from website" src="images/participants.png"></p>
+<p>JavaScript and web security is my cup of teap so I couldn't help bug dig in. Maybe this would be a fun opportunity to contribute?</p>
+<p>The websites also links to <a href="https://github.com/fightforthefuture/digital-climate-strike">the <em>digital-climate-strike</em> GitHub repository</a> and invites to collaborate. OK, let's give this a read. The file and commit id I am reading is <a href="https://github.com/fightforthefuture/digital-climate-strike/blob/0eb2621d0de84adbf9f8d88f99aa3b0e7486f7b9/static/widget.js">https://github.com/fightforthefuture/digital-climate-strike/blob/0eb2621d0de84adbf9f8d88f99aa3b0e7486f7b9/static/widget.js</a></p>
+<p>The source code starts with a list of settings that might be set on the parent page to allow the overlay be closed (or permanent) or redirect to a self-hosted copy of the widget and so on. <code>iframeHost</code> defines the hostname of the iframe that is being added to the page.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// …</span>
+<span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">DOM_ID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;DIGITAL_CLIMATE_STRIKE&#39;</span><span class="p">;</span>
+<span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">options</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">window</span><span class="p">.</span><span class="nx">DIGITAL_CLIMATE_STRIKE_OPTIONS</span><span class="o">||</span><span class="w"> </span><span class="p">{};</span>
+<span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">iframeHost</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">options</span><span class="p">.</span><span class="nx">iframeHost</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="kc">undefined</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">options</span><span class="p">.</span><span class="nx">iframeHost</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;https://assets.digitalclimatestrike.net&#39;</span><span class="p">;</span>
+<span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">footerDisplayStartDate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">options</span><span class="p">.</span><span class="nx">footerDisplayStartDate</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Date</span><span class="p">(</span><span class="mf">2019</span><span class="p">,</span><span class="w"> </span><span class="mf">7</span><span class="p">,</span><span class="w"> </span><span class="mf">1</span><span class="p">);</span><span class="w">       </span><span class="c1">// August 1st, 2019 - arbitrary date in the past</span>
+<span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">fullPageDisplayStartDate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">options</span><span class="p">.</span><span class="nx">fullPageDisplayStartDate</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Date</span><span class="p">(</span><span class="mf">2019</span><span class="p">,</span><span class="w"> </span><span class="mf">8</span><span class="p">,</span><span class="w"> </span><span class="mf">20</span><span class="p">);</span><span class="w">  </span><span class="c1">// September 20th, 2019</span>
+<span class="c1">// …</span>
+</code></pre></div>
+
+<p>Below is a function <code>getIframeSrc()</code> that uses the <code>iframeHost</code> above. It includes a language check and forwards some of the options to the iframe itself (e.g., when disabling Google Analytics).</p>
+<p>The next function <code>createIframe()</code>  creates the actual element and sets the <code>.src</code> attribute according to the result of <code>getIframeSrc()</code> as defined previously.</p>
+<p>Finally, it will add a message listener to get instructions from the iframe:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">window</span><span class="p">.</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s1">&#39;message&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">receiveMessage</span><span class="p">);</span>
+</code></pre></div>
+
+<p>Let's look into this <code>receiveMessage</code> function:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">function</span><span class="w"> </span><span class="nx">receiveMessage</span><span class="p">(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">event</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">DIGITAL_CLIMATE_STRIKE</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">action</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="s1">&#39;maximize&#39;</span><span class="o">:</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="nx">maximize</span><span class="p">();</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="s1">&#39;closeButtonClicked&#39;</span><span class="o">:</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="nx">closeWindow</span><span class="p">();</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="s1">&#39;buttonClicked&#39;</span><span class="o">:</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="nx">navigateToLink</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">linkUrl</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Wait a minute. The message does not have to come from the climate strike iframe. The function receives a message through the <code>postMessage</code> API and checks whether the received object contains a <code>DIGITAL_CLIMATE_STRIKE</code> attribute. But the website itself could be put into a frame and the parent website would then be able to send messages like this. Alternatively, if the website does not allow being put into a frame (and <a href="https://frederik-braun.com/x-frame-options-security-header.html">it should</a>!), it could be opened as a new tab/popup and then receive messages.
+Depending on further message content, it will call the function <code>closeWindow()</code>, <code>maximize()</code> or <code>navigateToLink()</code>. The last one sounds most interesting. Let's follow along:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">function</span><span class="w"> </span><span class="nx">navigateToLink</span><span class="p">(</span><span class="nx">linkUrl</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nb">document</span><span class="p">.</span><span class="nx">location</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">linkUrl</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>OK. This function is meant to be a simple redirect. However, the <code>linkUrl</code> is not being checked against a list of known URLs. We could just redirect to <code>javascript:</code> URLs.
+Navigations to <code>javascript</code> URLs are an old and weird way to execute JavaScript code. <strong>We have just found a Cross-Site Scripting bug</strong>.</p>
+<p>Here's what an attacker would need to do:
+Just open the victim website in iframe or popup in a way which leaves you with a JavaScript handle for the tab/window. The XSS is then easily triggered with something like</p>
+<div class="highlight"><pre><span></span><code><span class="nx">handle</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">DIGITAL_CLIMATE_STRIKE</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">action</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;buttonClicked&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">linkUrl</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;javascript:alert(1)&#39;</span>
+<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="s2">&quot;*&quot;</span><span class="p">);</span>
+</code></pre></div>
+
+<p>To be clear, I found this bug a week before the strike and wrote a patch that fixes the issue.
+The patch adds two checks. First of all the <code>receiveMessage()</code> function gets a check that only allows for messages from the real iframe. The hostname was defined in <code>iframeHost</code> as explained in the beginning. Furthermore, we want to limit the <code>navigateToLink</code> function so it only allows visiting actual websites. The patched <code>receiveMessage()</code> function is therefore:</p>
+<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="kd">function</span><span class="w"> </span><span class="nx">receiveMessage</span><span class="p">(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">event</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">DIGITAL_CLIMATE_STRIKE</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">origin</span><span class="p">.</span><span class="nx">lastIndexOf</span><span class="p">(</span><span class="nx">iframeHost</span><span class="p">,</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">action</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="s1">&#39;maximize&#39;</span><span class="o">:</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">maximize</span><span class="p">();</span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="s1">&#39;closeButtonClicked&#39;</span><span class="o">:</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">closeWindow</span><span class="p">();</span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="s1">&#39;buttonClicked&#39;</span><span class="o">:</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">linkUrl</span><span class="p">.</span><span class="nx">lastIndexOf</span><span class="p">(</span><span class="s1">&#39;http&#39;</span><span class="p">,</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">navigateToLink</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">linkUrl</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+</code></pre></div>
+
+<p>Kudos to the team for acknowledging and accepting the fix in a timely manner! </p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/digital-climatestrike-xss.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

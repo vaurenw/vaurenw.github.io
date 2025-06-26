@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: With Carrots & Sticks - Can the browser handle web security?</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="With Carrots & Sticks - Can the browser handle web security?" />
+ <meta property="og:title" content="With Carrots & Sticks - Can the browser handle web security?"/>
+ <meta property="og:url" content="https://vaurenw.github.io/madweb-keynote-2025.html"/>
+ <meta name="twitter:title" content="With Carrots & Sticks - Can the browser handle web security?" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/madweb-keynote-2025.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>With Carrots & Sticks - Can the browser handle web security?</h1>
+  <time datetime="2025-04-08T00:00:00+02:00">Tue 08 April 2025</time>
+</header>
+<article>
+    <p><em>NB: This is the blog version of my keynote from <a href="https://madweb.work/">Measurements, Attacks, and Defenses for the Web (MADWeb)</a> 2025, earlier this year. It was not recorded.</em></p>
+<p>In my keynote, I examined web security through the browser's perspective. Various browser features have helped fix transport security issues and increase HTTPS adoption:</p>
+<p>HTTPS adoption was brought to over 90% in ten years. This happened with encouragements in the form of providing more exciting APIs only to Secure Context or deprecating features (like with Mixed Content Blocking).</p>
+<h1>HTTPS Adoption over time</h1>
+<p><img alt="HTTPS Adoption over time" src="images/https_adoption_over_time.png"></p>
+<p>HTTPS is probably the main success story in web security.</p>
+<p>I've allowed myself to collect a few interesting milestones in the last ten years of HTTPS. Thanks to folks who replied on mastodon and internally at Mozilla to help come up with a few). Note these are based on anecdote rather than a real scientific correlation.</p>
+<p>Starting at 2013/2014, the web was already blocking mixed active content. The Snowden leaks came out and Google also reported to increase the page rank for sites that use HTTPS.</p>
+<p>The year 2015 had the release of the <a href="https://www.w3.org/TR/upgrade-insecure-requests/">Upgrade Insecure Requests</a> feature, as well as the release of HTTP2 which requires HTTPS. Richard Barnes at Mozilla called for a <a href="https://blog.mozilla.org/security/2015/04/30/deprecating-non-secure-http/">deprecation of insecure HTTP</a>.</p>
+<p>In the following year, Let's Encrypt became globally available. 2016 is also when the <a href="https://www.w3.org/TR/secure-contexts/">Secure Context specification</a> came out, allowing specifications to require that an API is only available on HTTPS.</p>
+<p>2017 could have been a major set back. Due to compliance issues browsers distrusted the popular (and free!) certificate authorities WoSign and StartSSL. Yet it only resulted in a minor change at global scale.</p>
+<p>Then, in 2018, Firefox called for <a href="https://blog.mozilla.org/security/2018/01/15/secure-contexts-everywhere/">Secure Contexts Everywhere</a>, proposing that new and powerful web APIs should all require HTTPS. Additionally, GDPR came into effect requiring HTTPS for logins and payments. The availability of wildcard certificates on Let's Encrypt also made deployment much easier for web servers hosting many subdomains.</p>
+<p>The beginning of year 2020 was overshadowed by the global COVID-19 pandemic, which caused lockdowns world wide. People were forced into isolation which resulted in a significant rise of online communication and also HTTPS.</p>
+<p>In 2021, Firefox and Chrome shipped a first "slice" of an HTTPS-First mode. A mode in which the browser upgrades requests to HTTPS with a fallback to HTTP if the secure connection can not be established. Firefox's first slice limits this to Private Browsing Mode. Chrome only does it for page loads from the address bar. It's also the year where browsers started phasing out positive indicators for HTTPS (the lock icon) and switching to negative indicators for insecure pages.</p>
+<p>Then, in 2022 Chrome started upgrading mixed content (HTTP content on HTTPS pages), without any fallback, then moves on to ship HTTPS-First as a default for all new page loads. Firefox follows suit with the address bar and then completely by default in early 2025.</p>
+<h2>Observations on the rise of HTTPS</h2>
+<p>It is interesting, that most of these efforts are more of a carrot than a stick.</p>
+<p>This is because we don’t like to break existing websites, so we have to entice authors to follow our carrot. But once we are at a certain percentage, like 99.9%, could we actually get out the stick?</p>
+<p>In light of these successful interventions as the browser's carrots and sticks - rewards for secure practices and penalties for insecure ones - we will then identify what can we could do to further apply security improvements.</p>
+<p>In particular, we should look at highly prevalent security issues in client code, like XSS and CSRF. In the end, we will see how the browser can play an instrumental role in web security improvements and what common tactics and potential issues exist.</p>
+<p>Maybe we can posit that all web bugs are in fact browser bugs?</p>
+<p>If so, what could this mean for the <a href="https://cwe.mitre.org/top25/archive/2024/2024_cwe_top25.html#top25list">two most prevalent web security vulnerabilities</a>, Cross-Site-Request-Forgery (CSRF) and Cross-Site Scripting (XSS).</p>
+<h1>Deprecations, e.g., CSRF</h1>
+<p>We do not remove features from the web lightly (see <a href="https://www.w3.org/TR/html-design-principles/">W3C HTML Design Principles</a> and <a href="https://frederikbraun.de/modern-solutions-xsleaks.html">my previous blog post</a>).</p>
+<p>Often times, a feature or default pattern is modified like this:</p>
+<ul>
+<li>Offer a new API that solves a problem (e.g., <code>SameSite=Strict</code> cookie attribute solves CSRF)</li>
+<li>Discourage the usage. Warn in Developer Tools. Mark as deprecated.</li>
+<li>Allow websites to opt-out of existing behavior (e.g., <code>SameSite=Lax</code> or <code>Strict</code>)</li>
+<li>Wait. More outreach?</li>
+<li>Switch default behavior (<code>SameSite=Lax</code> by default. Websites can still opt out)</li>
+</ul>
+<p>This process usually takes many years.</p>
+<p>With <code>SameSite</code> being default in Chromium-based browsers and Safari having shipped ITP and <a href="https://blog.mozilla.org/en/products/firefox/firefox-rolls-out-total-cookie-protection-by-default-to-all-users-worldwide/">Firefox having rolled-out Total Cookie Protection</a> (e.g., storage isolation) in 2022, most cookies should no longer be sent in cross-site requests per default.</p>
+<h2>CSRF Outlook</h2>
+<p>There is still work to do to get rid of CSRF once and for all.</p>
+<p>First of all, Chrome has shipped a bit of a deviation of what people would consider "lax by default" if taken literally. On <a href="https://web.dev/articles/samesite-cookies-explained#samesitelax_by_default">their article on explaining SameSite-Cookies</a>, they say their default is more permissive than an explicit <code>SameSite=Lax</code> cookie. Top-level <code>POST</code> requests <a href="https://groups.google.com/a/chromium.org/d/msg/blink-dev/AknSSyQTGYs/YKBxPCScCwAJ">will still include cookies</a>.</p>
+<p>Secondly, browsers are working on cookie isolation by default, essentially deprecating all third party cookies. This work happens in the IETF as an <a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-rfc6265bis/">update on RFC6265 called <code>draft-ietf-httpbis-rfc6265bis-20</code></a>.</p>
+<p>With these challenges tackled, maybe CSRF will be dead in a few years?</p>
+<h1>What if XSS was a browser bug?</h1>
+<p>Readers of my blog will know that I thoroughly enjoy talking about XSS. It's still the top-most reported security vulnerability and it's not a very complicated one.</p>
+<p>I believe that XSS can be solved within the browser.</p>
+<h2>XSS Mitigations in the past</h2>
+<h3>XSS filters</h3>
+<p>The year 2008 already saw XSS as the most-frequently reported vulnerability class at Microsoft, which lead them to build an XSS filter. An XSS filter is a mechanism that looks at the URL to identify potential injections and remove them from the request. Unfortunately, it led to hilarious bugs causing XSS in otherwise secure websites (e.g., Google).</p>
+<p>This, in turn, led to the invention of the so-called XSS Auditor. It was presented in a paper <a href="https://www.adambarth.com/papers/2010/bates-barth-jackson.pdf">"Regular Expressions Considered Harmful in Client-Side XSS Filters" by Daniel Bates, Adam Barth, Collin Jackson</a>, suggesting to integrate it into the browser engine.</p>
+<p>However, it soon met the same fate as the Microsoft XSS filter. At first, it was deemed not effective enough. In fact, it was so easy to bypass the XSS auditor, that the chrome teamremoved it from their bug bounty program, saying: "XSS auditor bypasses don't constitute Chrome security vulnerabilities".</p>
+<p>This turnd more drastic soon, when people found out that you can also attack websites with the xss auditor that would otherwise be totally secure. (I wrote more about the <a href="https://frederikbraun.de/xssauditor-bad.html">issues with the xss auditor in 2019</a>).</p>
+<h3>Content-Security-Policy (CSP)</h3>
+<p>This leaves us with CSP. Another mitigation that attemps to fix XSS in the browser. The idea is to opt-in and then explicitly control where scripts are allowed to come from. Originally just allow-listing URLs of scripts and disallowing all inline scripts and event handlers.</p>
+<p>CSP likely started with the <a href="https://www.gerv.net/security/content-restrictions/">Content Restrictions idea from gerv</a>, but was ratified as a W3C standard in 2013. Despite it's excellent theoretical security, it turned out to be not easily to deploy in almost all websites.</p>
+<p>So, in quick succession (at least for standards work), CSP was extended into a version 2. The next version brought support for allow-listing inline scripts based on nonces (numbers used once, unique identifiers per-request/response) and cryptographic hashes (like SHA2).</p>
+<p>However, CSP had to be adopted some more time. 2016 brought us CSP3 which was, among others, in response to the <a href="https://github.com/google/security-research-pocs/tree/master/script-gadgets">"script gadgets" security research from Google</a>. The idea behind this attack is that common Content Security Policies will allow-list Content Delivery Networks (CDNs), providing a multitude of JavaScript libraries. In fact, manyx CSPs will therefore implicitly also allow outdated and insecure versions of those libraries that could then be injected and turned into XSS again.</p>
+<p>Despite 15 years of work on CSP and similar technologies, I personally consider it to be a failure in solving XSS for the masses. According to the <a href="https://almanac.httparchive.org/en/2024/security#content-security-policy">Web Almanac</a>,
+less than 20% of websites have a CSP that even controls scripts. What's worse is that 90% of the CSPs out there still allow inline JavaScript. Essentially, providing no protection against XSS at all.</p>
+<h3>Lessons on XSS protections</h3>
+<p>I believe a truly useful XSS protection:</p>
+<ul>
+<li>should be really easy to adopt (like the XSS filters, actually)</li>
+<li>should provide high cmpatibility with existing content (CSP was missing this from the get go).</li>
+<li>should focus on prevention rather than mitigation</li>
+</ul>
+<h2>Outlook on XSS</h2>
+<p>Despite all the missteps, I think XSS can be solved after all. Especially, if we focus on DOM-based XSS first. DOM-based XSS is a variant of XSS where the bug is implemented in JavaScript &amp; frontend technologies.</p>
+<p>Two promising techniques will help prevent this in the near future.</p>
+<p>First, the probably latest extension to CSP, is Trusted Types (TT). The idea behind TT is that you can no longer use typical strings in APIs that may lead to code execution (e.g., <code>eval</code> or assignments to <code>innerHTML</code> etc.). You could consider this the dynamic, runtime variant of the static analysis prevention that we use at Firefox, which I described in my earlier blog post ["Finding and Fixing DOM-based XSS with Static Analysis"](</p>
+<p>https://frederikbraun.de/finding-and-fixing-dom-based-xss-with-static-analysis.html).</p>
+<p>So, instead of allowing normal strings, you are required to provide a Trusted Type. These can only be created in specific functions that are rather easy to provide by a security team and simple to look for (in a code audit). Google claims it has <a href="https://static.googleusercontent.com/media/publicpolicy.google/en//resources/google_commitment_secure_by_design_overview.pdf">solved  all of XSS and stopped getting reports in their bug bounty program</a> thanks to TT.</p>
+<p>A second approach that will help solving XSS is the <a href="https://github.com/WICG/sanitizer-api/">Sanitizer API</a>. It builds on how people prevent XSS in their JavaScript codebases right now. But instead of relying on a third-party library like<a href="https://github.com/cure53/DOMPurify/">DOMPurify</a>, it will be built into the browser.</p>
+<p>Essentially, shortening code form this:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">let</span><span class="w"> </span><span class="nx">clean</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">DOMPurify</span><span class="p">.</span><span class="nx">sanitize</span><span class="p">(</span><span class="nx">evil</span><span class="p">,</span><span class="w"> </span><span class="nx">options</span><span class="p">);</span>
+<span class="nx">div</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">clean</span><span class="p">;</span>
+</code></pre></div>
+
+<p>to this:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">div</span><span class="p">.</span><span class="nx">setHTML</span><span class="p">(</span><span class="nx">evil</span><span class="p">)</span>
+</code></pre></div>
+
+<p>The new <code>setHTML</code> function will allow customizations, just like the DOMPurify library but will default to something sensible and secure. On top of that, most web sites will not have to worry about bugs in the sanitizer as they will be taken care of by the browser.</p>
+<p>The <code>setHTML</code> function is already in the process of being upstreamed to WHATWG html.</p>
+<h2>Solving XSS once and for all</h2>
+<p>So, with these techniques in mind, I believe we can fix DOM-based XSS once and for all by following the aforementioned steps for web deprecations.</p>
+<ul>
+<li>What if the Sanitizer could apply globally, with a header?</li>
+<li>What if XSS-risks like <code>innerHTML=</code> could be automatically rewritten to auto-sanitize like <code>setHTML()</code> does?</li>
+<li>What if this auto-sanitize behavior became an opt-out, rather than opt-in?</li>
+</ul>
+<p>In fact, we have already developed this technology in Firefox's internals. We already make use of something like this to prevent sandbox escapes and other attacks in the Firefox UI bits. (cf. <a href="https://frederikbraun.de/hardening-firefox-against-injection-attacks-the-technical-details.html">"Hardening Firefox against Injection Attacks"</a>). Since we shipped this, we have also received much less security bugs in our frontend code as part of our bug bounty program.</p>
+<h1>Conclusion</h1>
+<p>Changing the web takes a lot of times. You need to consider lots of different initiatives. To improve and learn from the various attempts, you need to start with the "carrots" and provide opt-in security. This will allow building a new defaults that work for early adopters and eventually for everyone.</p>
+<p><strong>I believe he most prevalent bugs should no longer be a website’s problem, but a browser problem</strong>. The web ecosystem is fraught with some dangerous and widespread insecurity right now. I don't think the site is at fault.</p>
+<p><strong>I believe we should shift the responsibility away from millions of websites and into the hands of the web platform</strong>. And we have proven that it's possible with HTTPS, near-possible with CSRF and hopefully soon with XSS.</p>
+<p>New, secure APIs will lead to a safer web for all.</p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/madweb-2025-keynote.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

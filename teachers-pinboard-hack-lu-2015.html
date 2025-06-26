@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: Teacher's Pinboard Write-up</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="Teacher's Pinboard Write-up" />
+ <meta property="og:title" content="Teacher's Pinboard Write-up"/>
+ <meta property="og:url" content="https://vaurenw.github.io/teachers-pinboard-hack-lu-2015.html"/>
+ <meta name="twitter:title" content="Teacher's Pinboard Write-up" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/teachers-pinboard-hack-lu-2015.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>Teacher's Pinboard Write-up</h1>
+  <time datetime="2015-12-02T00:00:00+01:00">Wed 02 December 2015</time>
+</header>
+<article>
+    <blockquote>
+<p>I found the address of the <a href="https://school.fluxfingers.net:1502/">teacher's pinboard</a>!
+Can you try to get in and read all teachers' notes?
+Maybe you need to attack the admin account as well.</p>
+</blockquote>
+<p>The <a href="http://fluxfingers.net/">fluxfingers</a> (again) hosted the Capture The Flag (CTF) event for the <a href="https://hack.lu">hack.lu security conference</a> in Luxembourg. It's long since I've left the university but I'm still fond of both the hack.lu CTF and fluxfingers, so I contributed two tasks for the event.</p>
+<p>Since nobody bothered to publish their solution for the challenge, I have decided to release my own. By the way, you can still <a href="https://school.fluxfingers.net:1502/">access the challenge in the archive</a> and I recommend you take a look yourself, before you continue reading this spoiler.</p>
+<p><img alt="screenshot" src="/images/teacher-pinboard-screenshot.png"></p>
+<p>The teacher's pinboard is a website that provides you a log-in form that accepts any kind of username and password combination. After logging in, you are provided with a typical pinboard and you might notice that the website has provided you three cookies of the following format:</p>
+<div class="highlight"><pre><span></span><code>session=7341e6fa2ab3b37f26e0cac6fedc25f3438e5fb9b12a9daed890459aa21f349b12676b3d;
+accountinfo=(dp0%0AS&#39;username&#39;%0Ap1%0AS&#39;foo&#39;%0Ap2%0AsS&#39;password&#39;%0Ap3%0AS&#39;bar&#39;%0Ap4%0AsS&#39;admin&#39;%0Ap5%0AI00%0As.;
+signature=81a380499ae8a9801c1b791da88d93bb5c74224ce59c60ae4a5010bc943ad85f
+</code></pre></div>
+
+<p>The accountinfo looks interesting!</p>
+<p>Lets decode it:</p>
+<div class="highlight"><pre><span></span><code>(dp0\nS&#39;username&#39;\np1\nS&#39;foo&#39;\np2\nsS&#39;password&#39;\np3\nS&#39;bar&#39;\np4\nsS&#39;admin&#39;\np5\nI00\ns.
+</code></pre></div>
+
+<p>With some research (or experience), one might notice that this is the output of <a href="https://docs.python.org/2/library/pickle.html">Python's pickle module</a>. Unpickling this thus leads the following dictionary:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="s1">&#39;admin&#39;</span><span class="o">:</span><span class="w"> </span><span class="nx">False</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;password&#39;</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;bar&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;username&#39;</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;foo&#39;</span><span class="p">}</span>
+</code></pre></div>
+
+<p>Setting <code>admin</code> to <code>True</code> does not work, as the other cookie (<code>signature</code>) seems to enforce integrity of the <code>accountinfo</code> data. Another idea would be to attempt generic pickle exploits (like <a href="https://blog.nelhage.com/2011/03/exploiting-pickle/">so</a>), which did not work out as well.</p>
+<p>After some further close inspection, the user might notice that the JavaScript that comes with the pinboard does not only provide the nice user interface for playing with the notes. It also deals with the cookies! First it reads the cleartext password in your cookies and uses that to derive an encryption key. This key is then used to store the current notes in localStorage. Why? Mostly decoy, actually.</p>
+<p>The interesting part is how it looks a the cookies. It does so by executing <code>pickle.loads()</code> in JavaScript.</p>
+<p>"Pickle in JavaScript??" you say. Yes, in JavaScript. For this challenge, I have re-implemented Python's pickle module in JavaScript. Pickle is not actually a storage format but a nice little stack machine, that is easy to understand and fun to read. Take a look at <code>/usr/lib/python2.7/pickle.py</code> for example. The <a href="https://school.fluxfingers.net:1502/javascripts/pickle.js">JavaScript pickle code</a> is worth a read too, but the concept is generally the same: If you want to execute a function, you load a reference to a global on the stack and call it using <code>R</code> (reduce). Parameters of said function should be a tuple on the stack just below the function.</p>
+<p>So what would we do in JavaScript, if we wanted to execute arbitrary code but not write a pickle thing by hand? Well, throw our source code on the stack and call <code>eval()</code> of course. Turns out, the pickle.js author (me) thought of that too and implemented a blacklist, that disallows certain things:</p>
+<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">BLACKLIST</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;require&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;eval&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;setTimeout&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;setInterval&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;setImmediate&quot;</span><span class="p">];</span>
+</code></pre></div>
+
+<p>So that still leaves us with the <code>Function</code> constructor. I also know that Teams who solved this challenge used <code>process.mainModule.require</code>, which should also work. In general, the blacklist was more of a hint that one was going in the right direction than a real blocker.</p>
+<p>I ended up writing a <em>compiler</em> that takes JavaScript source code and produces a pickle object that executes said code:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">function</span><span class="w"> </span><span class="nx">compiler</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// c= load global &quot;Function&quot; on stack</span>
+<span class="w">  </span><span class="c1">// ( = set marker on stack, S = create String</span>
+<span class="w">  </span><span class="c1">// t = create tuple from marker to top of stack</span>
+<span class="w">  </span><span class="c1">//     (i.e. put string in a tuple)</span>
+<span class="w">  </span><span class="c1">// R = call top-of-stack - 1 with top-of-stack as the argument</span>
+<span class="w">  </span><span class="c1">//</span>
+<span class="w">  </span><span class="c1">// i.e., call Function(), with s as param  </span>
+<span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">pickle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cglobal\nFunction\n(S&#39;&quot;</span><span class="o">+</span><span class="nx">s</span><span class="o">+</span><span class="s2">&quot;&#39;\ntR&quot;</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">pickle</span><span class="w"> </span><span class="o">+=</span><span class="w">    </span><span class="s2">&quot;(tR.&quot;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">pickle</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+
+<p>Executing arbitrary code means you can now go through the directory and either find the file with the flag or find the source code and the secret key to produce an HMAC for a cookie that has <code>admin</code> set to <code>True</code>.</p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/teachers-pinboard-hack-lu-2015.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

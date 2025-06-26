@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: DOM Clobbering</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="DOM Clobbering" />
+ <meta property="og:title" content="DOM Clobbering"/>
+ <meta property="og:url" content="https://vaurenw.github.io/dom-clobbering.html"/>
+ <meta name="twitter:title" content="DOM Clobbering" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/dom-clobbering.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>DOM Clobbering</h1>
+  <time datetime="2022-12-12T00:00:00+01:00">Mon 12 December 2022</time>
+</header>
+<article>
+    <p><em>This article <a href="https://www.htmhell.dev/adventcalendar/2022/12/">first appeared on the HTMLHell Advent Calendar 2022</a>.</em></p>
+<h3>Motivation</h3>
+<p>When thinking of HTML-related security bugs, people often think of script injection attacks, which is also known as <a href="https://en.wikipedia.org/wiki/Cross-site_scripting">Cross-Site Scripting</a> (XSS). If an attacker is able to submit, modify or store content on your web page, they might include evil JavaScript code to modify the page or steal user information like cookies.
+Most developers out there protect their websites against XSS by disallowing or controlling script execution.</p>
+<p>However, this article is <strong>NOT</strong> about XSS.</p>
+<p>This article is about an interesting attack that relies on HTML-only injections. The techniques here were <a href="http://www.thespanner.co.uk/2013/05/16/dom-clobbering/">first described by Gareth Heyes in 2013</a>, the topic gained additional attention due to a <a href="https://publications.cispa.saarland/3756/">recent research paper</a> and its accompanying website <a href="https://domclob.xyz/">https://domclob.xyz/</a> from Khodayari et al.</p>
+<h3>Background</h3>
+<p>Before we dive into the vulnerability class of DOM Clobbering, we need to establish some background.</p>
+<p>Have you ever noticed that whenever you include a HTML element with an <code>id</code> attribute, it becomes available as a global name (and a name on the <code>window</code> object)? So, for example</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">form</span> <span class="na">id</span><span class="o">=</span><span class="s">freddy</span><span class="p">&gt;</span>
+</code></pre></div>
+
+<p>…will lead to <code>window.freddy</code> becoming a reference to that form element.</p>
+<p>This is a legacy inheritance from the very old days of HTML and also known as <em><a href="https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object">named property access</a></em> in the HTML spec. Studying the spec will inform us that the following elements will also appear on the <code>document</code> object: <code>embed</code>, <code>form</code>, <code>img</code>, and <code>object</code>.</p>
+<p>Given that web browsers have to maintain backwards compatibility support for relatively old web pages, <em>named property access</em> is designed in such a way <a href="https://webidl.spec.whatwg.org/#legacy-platform-object-abstract-ops">that element references come before lookups of APIs</a> and other new attributes on the <code>window</code> and <code>document</code> object.</p>
+<h3>DOM Clobbering Attacks</h3>
+<p>In essence, this means that an attacker with the ability to inject HTML may mess with simple Web APIs - like the property <code>document.hidden</code>:</p>
+<p>Imagine your website is trying to reduce or stop animations based on page visibility like so:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nb">document</span><span class="p">.</span><span class="nx">hidden</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">startAnimations</span><span class="p">();</span><span class="w"> </span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>an injected HTML form element will be able to make this truthy, regardless of whether the page is really hidden:</p>
+<p>With <code>&lt;form id=hidden&gt;</code> the value <code>document.hidden</code> would return a <code>HTMLFormElement</code> and therefore be considered truthy.</p>
+<p>So, in essence, DOM Clobbering is an attack where injected HTML may confuse the existing JavaScript application and therefore change the application logic.</p>
+<p>Another typical example of this vulnerability is where code is trying to fall back to a default config if some variable is set, like so:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">let</span><span class="w"> </span><span class="nx">config</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">defaultConfig</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* some config here */</span><span class="p">};</span>
+</code></pre></div>
+
+<p>If the <code>defaultConfig</code> name is clobbered, that other config is never going to be assigned correctly!</p>
+<p>Let's look at a third, more complicated example: In this case, an attacker has injected two input elements with a <code>id</code> attribute of <code>childNodes</code> into an existing form <code>f</code> like here:</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">form</span> <span class="na">id</span><span class="o">=</span><span class="s">f</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">input</span> <span class="na">id</span><span class="o">=</span><span class="s">childNodes</span><span class="p">&gt;</span>foo
+  <span class="p">&lt;</span><span class="nt">input</span> <span class="na">id</span><span class="o">=</span><span class="s">childNodes</span><span class="p">&gt;</span>bar
+  <span class="p">&lt;</span><span class="nt">input</span> <span class="na">type</span><span class="o">=</span><span class="s">text</span> <span class="na">value</span><span class="o">=</span><span class="s">&quot;hidden-from-js&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">form</span><span class="p">&gt;</span>
+</code></pre></div>
+
+<p>These injected input elements will overwrite the <code>form</code> element's property and all following JavaScript code will <strong>not</strong> be able to iterate over <code>f.childNodes</code>!</p>
+<p>Compare the clobbered property with the actual children in this screenshot below:</p>
+<p><img alt="Screenshot comparing devtools results for childNodes versus children property" src="/images/dom_clobbering.png"></p>
+<p>Do you see the difference in length?</p>
+<p>An attack vector like this one could be used to fool or confuse the website's JavaScript code when iterating over attacker-controlled DOM trees.</p>
+<p>Just imagine what else could be overridden!</p>
+<p>How would your web page behave if seemingly innocent function calls like <code>document.getElementById()</code> can fail with "Uncaught TypeError: <code>document.getElementById</code> is not a function" because the API has also been clobbered</p>
+<h3>Prevention</h3>
+<p>The best way to prevent DOM Clobbering is to use a strong <a href="https://en.wikipedia.org/wiki/HTML_sanitization">Sanitizer</a> library. A sanitizer typically goes through user-supplied HTML and only leaves the harmless bits - removing scripts, event handlers and other injections - like DOM Clobbering.</p>
+<p>The author of this article recommends <a href="https://github.com/cure53/DOMPurify/">DOMPurify</a>. By default, DOMPurify will remove all clobbering properties. Using the option <code>SANITIZE_NAMED_PROPS: true</code> will instead prefix user-supplied identifiers with <code>user-content-</code>.</p>
+<p>However, if you want to live on the edge you might also want to look at the upcoming <a href="https://wicg.github.io/sanitizer-api/">Sanitizer API</a>. The specification for the Sanitizer API is still in development, but Chrome and Firefox are already shipping a prototype and the <a href="https://sanitizer-api.dev/">Sanitizer API Playground</a> has instructions on how to enable it.</p>
+<p>In order to fix DOM Clobbering with the Sanitizer API, you need to configure the Sanitizer to disallow attributes of type <code>name</code> and <code>id</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">mySanitizer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">Sanitizer</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">blockAttributes</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;id&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">elements</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;*&#39;</span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;name&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">elements</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;*&#39;</span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">});</span>
+<span class="nx">someElement</span><span class="p">.</span><span class="nx">setHTML</span><span class="p">(</span><span class="nx">input</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="nx">sanitizer</span><span class="o">:</span><span class="w"> </span><span class="nx">mySanitizer</span><span class="p">});</span>
+</code></pre></div>
+
+<p>Good luck!</p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/dom_clobbering.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

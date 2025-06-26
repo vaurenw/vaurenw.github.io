@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: Neue Methoden für Cross-Origin Isolation: Resource, Opener & Embedding Policies mit COOP, COEP, CORP und CORB</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="Neue Methoden für Cross-Origin Isolation: Resource, Opener & Embedding Policies mit COOP, COEP, CORP und CORB" />
+ <meta property="og:title" content="Neue Methoden für Cross-Origin Isolation: Resource, Opener & Embedding Policies mit COOP, COEP, CORP und CORB"/>
+ <meta property="og:url" content="https://vaurenw.github.io/neue_methoden_cross_origin_isolation.html"/>
+ <meta name="twitter:title" content="Neue Methoden für Cross-Origin Isolation: Resource, Opener & Embedding Policies mit COOP, COEP, CORP und CORB" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/neue_methoden_cross_origin_isolation.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>Neue Methoden für Cross-Origin Isolation: Resource, Opener & Embedding Policies mit COOP, COEP, CORP und CORB</h1>
+  <time datetime="2022-11-10T00:00:00+01:00">Thu 10 November 2022</time>
+</header>
+<article>
+    <p><em>This document sat in my archives.
+I originally created this so I have notes for my
+participation in the Working Draft podcast - a German podcast
+for web developers. That's why this article is in German as well.
+The <a href="https://workingdraft.de/452/">podcast episode 452</a> was published in 2020,
+but I never published this document.
+In the interest of breathing some live into this blog, here it is. Have fun!</em></p>
+<h2>Hintergrund: CORS &amp; Same-Origin Policy</h2>
+<p>Die erste und wichtigste Grundregel in Sachen Web- &amp; Browser-Sicherheit
+ist die Same-Origin Policy. Sie bestimmt, dass alle Webseiten im
+gleichen <em>Origin</em> auch mit den gleichen Rechten ausgestattet sind. Ein
+Origin ist das Tripel von "Scheme, Host, Port".</p>
+<p>Das bedeutet insbesondere, dass JavaScript keinen Zugriff auf Inhalte
+aus anderen Origins erhält.</p>
+<p>Wenn man also ein Bild, iframe oder Popup von einem anderen Origin lädt,
+dann kann man es zwar <strong>darstellen</strong> lassen, aber eben <strong>nicht per
+JavaScript auslesen.</strong> Egal ob via canvas, <code>iframe.contentDocument</code>,
+<code>popup.contentDocument</code> usw.</p>
+<p>Wichtig ist noch zu erwähnen, dass hier etwas namens "ambient authority"
+greift: Wenn ein iframe von, sagen wir mal twitter.com (z.B. ein
+Tweet-Knopf) angezeigt wird, schickt der Browser die Cookies für
+twitter.com mit, so dass Twitter die Antwort auf den aktuellen Account
+des aktuellen Benutzers anpassen kann.</p>
+<p>Eine Ausnahme bietet hier CORS, das Cross-Origin Resource Sharing. Eine
+Seite kann explizit erlauben, von anderen Origins gelesen zu werden,
+wenn sie in dem Response Header eine entsprechende Erlaubnis per CORS.
+Der häufigste header im Response lautet</p>
+<p><code>Access-Control-Allow-Origin: *</code>, damit sind alle Webseiten erlaubt, die
+Datei zu laden UND auszulesen.</p>
+<p>Wenn man möchte, kann man hier noch zwischen anonymen und credentialed
+requests unterscheiden:</p>
+<p>Mit dem <code>*</code> im ACAO-Header wird jedem das Lesen erlaubt. Das besondere am
+<code>*</code> ist, dass implizit nur anonyme Requests erlaubt werden.</p>
+<h2>Probleme die Same-Origin Policy und CORS nicht lösen</h2>
+<p>Die Same-Origin Policy ist eine mächtige, allgegenwärtige Maßnahme,
+lässt jedoch einige Probleme ungelöst.</p>
+<h3>XSLeaks</h3>
+<p>Der Angriff des sogenannten Cross-Site Leaks besteht schon seit gut 10
+Jahren, ist aber kürzlich erneut in den Fokus gerückt. Ein
+xsleak-Angriff macht sich bestimmtes Browserverhalten (zum Beispiel)
+Timing zu nutze um Informationen über eine cross-origin Webseite zu
+erhalten. Ein ganz einfaches Beispiel ist eine Seite, die <em>nur nach dem
+Login</em> einen <code>&lt;iframe&gt;</code> anzeigt. Wenn ein Angreifer nun diese Seite
+selbst in ein <code>&lt;iframe&gt;</code> öffnet, kann der Angreifer über
+iframeEl.contentWindow.length herausfinden, ob die Seite weitere frames
+beinhält und somit deduzieren ob der Benutzer eingeloggt ist.</p>
+<p>Natürlich wissen wir alle, dass es eine schlechte Idee ist, dem
+Angreifer zu erlauben unsere Seite in einem <code>&lt;iframe&gt;</code> zu öffnen,
+deswegen gibt es ja die CSP frame-ancestors direktive &amp; X-Frame-Options.</p>
+<p>Derselbe Angriff funktioniert nur leider ebenfalls mit einem Popup bzw
+der Referenz, die aus window.open fällt. Ferner lässt sich eben diese
+Schwachstelle nicht aufheben, da Browser hier die
+Rückwärtskompatibilität für existierende Webseiten wahren müssen.</p>
+<p>Unter dem Begriff XSLeaks gibt es allerdings noch viele weitere
+Techniken:</p>
+<ul>
+<li>
+<p>history.length lässt sich benutzen um redirects zu erkennen
+    (nützlich für Login detection in login_and_then-Patterns in
+    Webseiten)</p>
+</li>
+<li>
+<p>Bilder, Videos, Audio erlauben das ausmessen von metadaten
+    (A/V-Länge, Bilddimensionen)</p>
+</li>
+<li>
+<p>Request timing (wie lange dauert ein fetch())</p>
+</li>
+<li>
+<p>Leak of HTTP request done by exhausting the Network pool</p>
+</li>
+</ul>
+<h3>Spectre</h3>
+<p>Anfang 2018 veröffentlichte eine Gruppe von Sicherheitsforschern die
+Sicherheitslücken Spectre &amp; Meltdown. Diese Schwachstellen betreffen die
+gängigsten CPUs von u.a. AMD, Intel. Durch cleveres Ausnutzen einer
+Optimierung (speculative branching), die so vom Angreifer kontrolliert
+wird, dass sie nicht greift und eine "branch misprediction" rückgängig
+gemacht werden soll, ist es dem Angreifer möglich den gesamten Speicher
+innerhalb des selben laufenden Prozesses auszulesen. Ferner hat ein Team
+von Microsoft Vulnerability Research gezeigt, dass sich diese Lücke via
+JavaScript ausnutzen lässt.</p>
+<p>Spectre ist insbesondere für Browser ein Problem, da sich mehrere
+Origins normalerweise einen Prozess teilen.</p>
+<p>Diese Angriffe benötigen meist APIs für Shared Memory, wie
+SharedArrayBuffer. Daher haben sich die Browser darauf geeinigt
+SharedArrayBuffer vorübergehend abzuschalten.</p>
+<h3>Zusammenfassend: Sicherheitslücken vermeiden, Zugriff zu SharedArrayBuffer wieder erlangen:</h3>
+<p>Es gibt sinnige Bestrebungen, sich weiter von anderen Webseiten
+fernzuhalten, als nur durch die Same-Origin Policy forciert.</p>
+<p>Informationen zu Fenstern aus anderen Origins können nicht vollständig
+aus dem jeweiligen Prozess rausgehalten werden, zum Beispiel durch <code>&lt;img
+src&gt;</code>.</p>
+<p>Im Zuge dessen, sind Browser dazu übergegangen jedem Origin seinem
+eigenen Prozess zuzuweisen. Das nennen wir Site-Isolation bzw. bei
+Firefox "Project Fission".</p>
+<p>Normalerweise würde der Browser ungefähr jedem Tab einen eigenen Prozess
+zuweisen. Mit "Site Isolation" benötigen wir für jeden iframe einen
+weiteren Prozess. Für eine News-Webseite wie cnn.com werden statt einem
+Prozess nun auf einmal etwa 14 Prozesse benötigt.</p>
+<h1>Neue Methoden für Cross-Origin Isolation</h1>
+<p>Aufgrund der neuen Angriffe und der neuen Browser-Architektur, ziehen es
+bestimmte Webseiten nun vor sich und ihr Origin komplett zu isolieren.
+Wenn man als Webseite in seinem komplett eigenen Tab ist - ohne
+Ausnahme, dann wäre auch ein Spectre-Angriff nicht mehr problematisch.
+Alles was ausgelesen werden kann, ist ohnehin eigene Information. Um das
+zu ermöglichen, wurden ein paar neue Sicherheitsmechanismen in Form
+eines HTTP Response Headers eingeführt. Eine Kombination derer erlaubt
+es, als "crossOriginIsolated" zu gelten und somit wieder Zugriff auf
+SharedArrayBuffer zu erhalten.</p>
+<p>Hier nun ein kurzer Überblick über die neuen Cross-Origin primitiven:</p>
+<h2>Cross-Origin-Opener-Policy (COOP)</h2>
+<p><code>Cross-Origin-Opener-Policy: unsafe-none | same-origin-allow-popups | same-origin</code></p>
+<p>Unter Zuhilfenahme von Cross-Origin-Opener-Policy, kann eine Seite
+explizit sagen, dass es keine window-handles (opener, popup) für Fenster
+aus anderen Origins geben darf:</p>
+<p>Hierfür senden wir <code>Cross-Origin-Opener-Policy: same-origin</code>.</p>
+<h2>Cross-Origin-Embedder-Policy (COEP)</h2>
+<p><code>Cross-Origin-Embedder-Policy: unsafe-none | require-corp | credentialless</code></p>
+<p>Wenn man COOP einsetzt besteht immer noch die Möglichkeit, dass man
+selbst noch irgendwelche Cross-Origin Resourcen nachlädt (versehentlich,
+redirects, usw.). Mit <code>Cross-Origin-Embedder-Policy: require-corp</code>
+kann man sicher stellen, dass das Dokument nur Ressourcen in den Prozess
+lädt, die von dem eigenen Origin sind oder es explizit erlaubt (durch
+CORP. siehe unten) .</p>
+<p>Wenn der Wert <code>credentialless</code> gesetzt ist, werden cross-origin Inhalte
+ohne Cookies (credentials) angefordert. Das erlaubt Interaktionen mit
+Webseiten, die nicht explizit "CORP" benutzen.</p>
+<h2>COOP + COEP = <code>crossOriginIsolated</code></h2>
+<p>Nur wenn man COOP+COEP einsetzt, erhält eine Website das Attribut
+<code>window.crossOriginIsolated</code> als true. Nur, wenn man sich mit seinen
+eigenen (plus eventuell öffentlichen) Daten in einem eigenen Prozess
+abschottet, erhält man Zugriff auf <code>SharedArrayBuffer</code> und einen besonders
+genauen Timer in der Performance API.</p>
+<h2>CORP</h2>
+<p><code>Cross-Origin-Resource-Policy: same-site | same-origin | cross-origin</code></p>
+<p>Mit CORP kann man, in etwa analog zu CORS, eine Ressource freischalten
+und für den Gebrauch als öffentlich jenseits der Prozessgrenzen hinweg
+deklarieren</p>
+<h2>CORB bzw. ORB</h2>
+<p>Im Gegensatz zu den letzt genannten Methoden sind CORB, ORB <strong>kein</strong>
+HTTP Header, sondern eine Festlegung, wie ein Browser gewisse Ressourcen
+zu laden hat:. Die Idee basiert darauf, dass cross-origin Resourcen mit
+"zweifelhaften Content-Typen" so blockiert werden, dass sie für den
+Webprozess als "Network Error" dargestellt werden. Weitestgehend, geht
+es darum Inhalte bereits an der Prozessgrenze zu blockieren, wenn nicht
+eindeutig klar ist, dass sie für den Gebrauch wirklich erlaubt sind.
+Typische Beispiele sind Inhalte mit Content-Type <code>text/plain</code>, welches
+dann über <code>&lt;script&gt;</code> geladen werden könnten und trotz Syntaxfehler im
+Prozessspeicher landen. Dies wird künftig nicht mehr möglich sein.</p>
+<h2>Ausblick</h2>
+<p>Da die Themen xsleaks und auch Spectre noch relativ jung sind, ist zu
+erwarten dass es weitere Mechanismen, Einschränkungen oder neue Werte
+für die hier vorgestellten Response Header entwickelt werden. Bereits
+jetzt werden Mechanismen wie
+"<a href="https://github.com/hemeryar/explainers/blob/main/coop_restrict_properties.md">restrict-properties</a>"
+für Cross-Origin-Opener Policy vorgeschlagen, was die Isolation
+beibehalten soll aber OAuth-Flows über pop ups ermöglichen könnte.</p>
+<p>Es wird sich zeigen, was hier ausreichend ist und bleibt.</p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/neue_methoden_cross_origin_isolation.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

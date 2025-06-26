@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: Help Test Firefox's built-in HTML Sanitizer to protect against UXSS bugs</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="Help Test Firefox's built-in HTML Sanitizer to protect against UXSS bugs" />
+ <meta property="og:title" content="Help Test Firefox's built-in HTML Sanitizer to protect against UXSS bugs"/>
+ <meta property="og:url" content="https://vaurenw.github.io/test-firefox-xss-sanitizer.html"/>
+ <meta name="twitter:title" content="Help Test Firefox's built-in HTML Sanitizer to protect against UXSS bugs" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/test-firefox-xss-sanitizer.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>Help Test Firefox's built-in HTML Sanitizer to protect against UXSS bugs</h1>
+  <time datetime="2019-12-06T00:00:00+01:00">Fri 06 December 2019</time>
+</header>
+<article>
+    <p><em>This article first appeared on the <a href="https://blog.mozilla.org/security/2019/12/02/help-test-firefoxs-built-in-html-sanitizer-to-protect-against-uxss-bugs/">Mozilla Security blog</a></em></p>
+<p>I recently gave a talk at OWASP Global AppSec in Amsterdam and
+summarized the presentation in a blog post about <a href="https://frederik-braun.com/firefox-ui-xss-leading-to-rce.html"><em>how to achieve
+"critical"-rated code execution vulnerabilities in Firefox with
+user-interface
+XSS</em></a>.
+The end of that blog posts encourages the reader to participate the bug
+bounty program, but did not come with proper instructions. This blog
+post will describe the mitigations Firefox has in place to protect
+against XSS bugs and how to test them. Our about: pages are privileged
+pages that control the browser (e.g., <code>about:preferences</code>, which
+contains Firefox settings). A successful XSS exploit has to bypass <a href="https://blog.mozilla.org/security/2019/10/14/hardening-firefox-against-injection-attacks/"><em>the
+Content Security Policy (CSP), which we have recently
+added</em></a>
+but also our built-in XSS sanitizer to gain arbitrary code execution. A
+bypass of the sanitizer without a CSP bypass is in itself a
+severe-enough security bug and warrants a bounty, subject to the
+discretion of the Bounty Committee. See the <a href="https://www.mozilla.org/en-US/security/client-bug-bounty/"><em>bounty
+pag</em></a><a href="https://www.mozilla.org/en-US/security/client-bug-bounty/"><em>es</em></a>
+for more information, including how to submit findings.</p>
+<h1>How the Sanitizer works</h1>
+<p>The Sanitizer runs in the so-called <a href="https://w3c.github.io/DOM-Parsing/#dfn-fragment-parsing-algorithm"><em>"fragment
+parsing"</em></a>
+step of innerHTML. In more detail, whenever someone uses innerHTML (or
+similar functionality that parses a string from JavaScript into HTML)
+the browser builds a DOM tree data structure. Before the newly parsed
+structure is appended to the existing DOM element our sanitizer
+intervenes. This step ensures that our sanitizer can not mismatch the
+result the actual parser would have created - because it is indeed the
+actual parser. The line of code that triggers the sanitizer is in
+<a href="https://searchfox.org/mozilla-central/rev/171109434c6f2fe086af3b2322839b346a112a99/dom/base/nsContentUtils.cpp#4683"><em>nsContentUtils::ParseFragmentHTML</em></a>
+and <em>nsContentUtils::ParseFragmentXML</em>. This aforementioned link points
+to a specific source code revision, to make hotlinking easier. Please
+click the file name at the top of the page to get to the newest revision
+of the source code. The sanitizer is implemented as an allow-list of
+elements, attributes and attribute values in
+<a href="https://searchfox.org/mozilla-central/source/dom/base/nsTreeSanitizer.cpp"><em>nsTreeSanitizer.cpp</em></a>.
+Please consult the allow-list before testing. <strong>Finding a Sanitizer
+bypass is a hunt for</strong> <a href="https://en.wikipedia.org/wiki/Cross-site_scripting#Mutated_XSS_(mXSS)"><strong><em>Mutated XSS
+(mXSS)</em></strong></a>
+<strong>bugs in Firefox</strong> -- Unless you find an element in our allow-list that
+has recently become capable of running script.</p>
+<h1>How and where to test</h1>
+<p>A browser is a complicated application which consists of millions of
+lines of code. If you want to find new security issues, you should test
+the <a href="https://nightly.mozilla.org/"><em>latest development version</em></a>. We
+often times rewrite lots of code that isn't related to the issue you
+are testing but might still have a side-effect. To make sure your bug is
+actually going to affect end users, test <a href="https://nightly.mozilla.org/"><em>Firefox
+Nightly</em></a>. Otherwise, the issues you find
+in Beta or Release might have already been fixed in Nightly.</p>
+<h1>Sanitizer runs in all privileged pages</h1>
+<p>Some of Firefox's internal pages have more privileges than regular web
+pages. For example about:config allows the user to modify advanced
+browser settings and hence relies on those expanded privileges. Just
+open a new tab and navigate to about:config. Because it has access to
+privileged APIs it can not use innerHTML (and related functionality like
+outerHTML and so on) without going through the sanitizer.</p>
+<h3>Using Developer Tools to emulate a vulnerability</h3>
+<p>From <code>about:config</code>, open The developer tools console (Go to <em>Tools</em> in
+the menu bar. Select <em>Web Developers</em>, then <em>Web Console</em>
+(Ctrl+Shift+k)). To emulate an XSS vulnerability, type this into the
+console: <code>document.body.innerHTML = '&lt;img src=x onerror=alert(1)&gt;'</code>
+Observe how Firefox sanitizes the HTML markup by looking at the error in
+the console:
+<code>“Removed unsafe attribute. Element: img. Attribute: onerror.”</code> You may
+now go and try other variants of XSS against this sanitizer. Again, try
+finding an mXSS bug or by identifying an allowed combination of element
+and attribute which execute script.</p>
+<h3>Finding an actual XSS vulnerability</h3>
+<p>Right, so for now we have <em>emulated</em> the Cross-Site Scripting (XSS)
+vulnerability by typing in innerHTML ourselves in the Web Console.
+That's pretty much cheating. But as I said above: <em>What we want to find
+are sanitizer bypasses. This is a call to test our mitigations.</em> But if
+you still want to find real XSS bugs in Firefox, I recommend you run
+some sort of smart static analysis on the Firefox JavaScript code. And
+by smart, I probably do not mean
+<a href="https://github.com/mozilla/eslint-plugin-no-unsanitized"><em>eslint-plugin-no-unsanitized</em></a>.</p>
+<h1>Summary</h1>
+<p>This blog post described the mitigations Firefox has in place to protect
+against XSS bugs. These bugs can lead to remote code execution outside
+of the sandbox. We encourage the wider community to double check our
+work and look for omissions. This should be particularly interesting for
+people with a web security background, who want to learn more about
+browser security. Finding severe security bugs is very rewarding and
+we're looking forward to getting some feedback. If you find something,
+please consult the <a href="https://www.mozilla.org/en-US/security/bug-bounty/"><em>Bug Bounty
+pages</em></a> on how to
+report it.</p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/test-firefox-xss-sanitizer.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>

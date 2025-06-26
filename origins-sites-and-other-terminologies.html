@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Frederik Braun: Origins, Sites and other Terminologies</title>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="/theme/css/main.css" type="text/css" />
+ <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 200"><style>svg{background-color:%231f54a6;}text{fill:white;font-family:Georgia,Cambria,"Times New Roman",Times,serif;}</style><text y="1.2em" font-size="135">F</text></svg>'>
+ <link href="https://vaurenw.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Frederik Braun ATOM Feed" />
+ <link href="https://vaurenw.github.io/feeds/all.rss.xml" type="application/rss+xml" rel="alternate" title="Frederik Braun RSS Feed" />
+ <meta property="og:site_name" content="Frederik Braun"/>
+ <meta property="og:type" content="website"/>
+ <meta name="twitter:card" content="summary"/>
+ <meta name="description" content="Origins, Sites and other Terminologies" />
+ <meta property="og:title" content="Origins, Sites and other Terminologies"/>
+ <meta property="og:url" content="https://vaurenw.github.io/origins-sites-and-other-terminologies.html"/>
+ <meta name="twitter:title" content="Origins, Sites and other Terminologies" />
+ <meta name="fediverse:author" content="@freddy@security.plumbing" />
+ <link rel="canonical" href="https://vaurenw.github.io/origins-sites-and-other-terminologies.html"/>
+</head>
+
+<body>
+<header class="site-header" role="banner">
+<div class="wrapper"><a class="site-title" rel="author" href="/">Frederik Braun</a><nav class="site-nav">
+  <input type="checkbox" id="nav-trigger" class="nav-trigger">
+  <label for="nav-trigger">
+  <span class="menu-icon">
+    <svg viewBox="0 0 18 15" width="18px" height="15px">
+      <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+    </svg>
+  </span>
+  </label>
+  <div class="trigger">
+    <a class="page-link" href="https://vaurenw.github.io/archives.html">Blog</a>
+    <a class="page-link" href="https://vaurenw.github.io/pages/publications.html">Portfolio</a>
+    <a class="page-link" href="https://vaurenw.github.io/contact.html">Contact</a>
+</div>
+</nav></div>
+</header>
+
+<hr class="tophr">
+<div id='wrapper' class="wrapper">
+<div id='text1'>
+        
+<header>
+  <h1>Origins, Sites and other Terminologies</h1>
+  <time datetime="2023-01-14T00:00:00+01:00">Sat 14 January 2023</time>
+</header>
+<article>
+    <p>In order to fully discuss security issues, their common root causes and useful prevention or mitigation techniques, you will need some common ground on the security model of the web. This, in turn, relies on various terms and techniques that will be presented in the next sections.</p>
+<p>Feel free to skip ahead, if you are familiar with some of the following concepts.</p>
+<h2>The Same-Origin Policy</h2>
+<p>The most important notion of scope on the web is an <em>Origin</em>.
+An origin is usually a tuple of a scheme, a host and a port of a URL.
+Generally, documents can only interact with each other when hosted
+on the same origin. In essence, this means that two communicating
+documents' URLs should have the same scheme, host and port.</p>
+<p>However, an origin can also be a so-called an <em>opaque origin</em>, which is considered a restricted context that is always <em>cross-origin</em> to everything else. This is used in e.g., <code>&lt;iframe&gt;</code> elements with the <code>sandbox</code> attribute.</p>
+<p>Cross-origin resources that are loaded into the current document (e.g., scripts, images) can be <em>used</em> (e.g., executed or displayed) but not properly read: A cross-origin image can be drawn onto a <code>&lt;canvas&gt;</code>, but its pixels can not be read. A cross-origin's script can be executed but the actual source text is unreadable. However, the script's side effects are observable when modifying the global scope (e.g., defining a new global variable). This can lead to unintended leaks, called Cross-Site Script Inclusions. <!-- TODO: task: add ref --></p>
+<p>The Same-Origin Policy can not always apply purely based on comparing the origins of two URLs, as we will likely see in another post. For now, a quick link to my 2012 diploma thesis <em><a href="https://frederik-braun.com/publications/thesis/Thesis-Origin_Policy_Enforcement_in_Modern_Browsers.pdf">"Origin Policy Enforcement in Modern Browsers"</a></em> will have to suffice.</p>
+<p>Interactions that are subject to the Same-Origin Policy can be roughly grouped in two scenarios:</p>
+<h3>1) DOM Access</h3>
+<p>Synchronous access in JavaScript across origin boundaries can happen through a <code>window</code> or <code>document</code> object. These are typically obtained through an <code>&lt;iframe&gt;</code> or a popup created with <code>window.open()</code> and are always gated by the Same-Origin Policy - except for some interesting corner cases:</p>
+<ol>
+<li>Reading the <code>window.length</code> property, which reveals the number of frames.</li>
+<li>Reading <code>closed</code> attribute (used for popups) and calling <code>close()</code>.</li>
+<li>Invoking <code>focus()</code> and <code>blur()</code>.</li>
+<li>Calling <code>postMessage</code> allows sending data, which triggers a <code>MessageEvent</code> on the receiving window asynchronously.</li>
+<li>A cross-origin window <em>can</em> be navigated away by assigning to <code>window.location</code> or invoking <code>location.replace()</code>.</li>
+</ol>
+<p>Interestingly, this already allows for some tricks and attacks where a cross-origin window is suddenly replaced with a similar-looking spoof.</p>
+<h3>2) HTTP Requests</h3>
+<p>Websites can perform HTTP requests, but will <em>not</em> be able to read the responses, unless the request's URL is same-origin. Requests are typically issued with APIs like <code>XMLHttpRequest</code> and <code>fetch()</code>.</p>
+<p>However, there are some exceptions and techniques towards relaxing same-origin checks, like <em>Cross Origin Resource Sharing</em> (CORS). Many of these exceptions grew organically based on some specific need. We will go through them in a later post.</p>
+<!-- TODO: task: add ref-->
+
+<h2>Site, Registerable Domain and Public Suffix</h2>
+<p>Some APIs are governed by the notion of a <em>Site</em>, instead of an <em>Origin</em>. A <em>Site</em> is a combination of a scheme and a host's <em>registerable domain</em>.</p>
+<p>Looking up the <em>registerable domain</em> of a hostname, is a quite literally a check which domain had to be registered (e.g., <code>example.co.uk</code> or is the registerable domain for <code>www.example.co.uk</code> as well as for <code>mail.example.co.uk</code>). This lookup is useful to include an entity and all of its subdomains, but nothing above.</p>
+<p>The idea of a <em>Site</em> is used in a variety of specs that want to allow related web pages to collaborate for convenience or legacy support reasons. Among them are Storage Access API (3rd Party Cookie Access), WebAuthn and Federated Credential Management.</p>
+<blockquote>
+<b>Historical context</b>:
+
+Previously, people used the terminology of a <em>top-level domain</em>, where the <em>top</em> was presumed to be exactly one level of nesting and not more. This has been long-since incorrect and impractical - given the existence of "top" levels with additional nesting like <code>co.uk</code>. Therefore, a variety of other terms have emerged, like <em>eTLD+1</em> (the effective top-level domain, plus another level of nesting). Web standards have converged on <em>registerable domain</em>.<br>
+What this means is that the boundary where a "top" level begins has to be defined otherwise: In practice, this happens in a manually maintained text file otherwise known as the <em><a href="https://publicsuffix.org/">Public Suffix List</a></em>.
+<br><br>
+Aside: Even before that, people used to refer to same-site by just comparing two <em>registerable domains</em>, without the scheme. This has been renamed to <em>schemelessly same-site</em>. Let's pretend that never happened in the first place.
+</blockquote>
+
+<p>Getting a domain of yours added to the aforementioned Public Suffix List, allows to enforce privilege separation along the lines of the Same-Origin Policy: If your domain is considered a public suffix, then every name below that becomes its own origin. It is generally recommended to do that in order to assign user-generated content into separated namespaces. A great example is <code>github.io</code>, where each user is getting a namespace underneath the public suffix and can therefore not affect cookies or site-specific settings with other users.</p>
+<h2>Secure Contexts</h2>
+<p><em>Secure Context</em> is a generalized notion of whether a website was served over HTTPS. A simple look at the protocol scheme does not fully work and the generalization is necessary to allow for situations where a document does not have a HTTP(S) URL but is inheriting its context (e.g., <code>&lt;iframe srcdoc&gt;</code>, <code>about:blank</code> documents). Additionally, pages hosted on <code>*.localhost</code> or via the local filesystem (<code>file://</code>) are also considered secure. Whether the current page was delivered securely is exposed in JavaScript via the <code>window.isSecureContext</code> property.</p>
+<p>Being in a Secure Context is often times required for newer, powerful APIs which want some level of assurance that a web page has not been intercepted or modified by a network attacker. A typical API that requires it is ServiceWorkers, because persistently installed background code should not be perpetuated into future sessions when coming from an insecure connection.</p>
+<p><strong>Note:</strong> A document delivered over HTTPS is <strong>not</strong> a secure context, if it has been embedded from an insecure context (e.g. HTTP site contains <code>&lt;iframe&gt;</code> of HTTPS site).</p>
+<h2>Cross-Origin Isolation</h2>
+<p>Cross-Origin Isolation is a newer security boundary, that was created as a reaction to two noteworthy attack groups. The first attack group being so-called cross-site leaks (henceforth called <em>xsleaks</em>) and microarchitectural side-channel attacks against modern CPUs (Spectre, Meltdown, and its various successors).</p>
+<p><em>Xsleaks</em> attacks rely on abusing some pre-existing global state (e.g. browser cache, a resource limit for maximum allowed opened socket) to infer or leaking cross-site application state. This is a generalization upon previously known methods for e.g., redirection-detections to identify whether a user is logged in with a third-party site, but also history stealing attacks<!-- this could need way more details. -->. The <a href="https://xsleaks.dev/">xsleaks wiki</a> has many examples and suggested countermeasures.</p>
+<p>Microarchitectural attacks (like Spectre and Meltdown) rely on specific CPU behavior in order to infer or leak information from the processor itself. Roughly speaking, exploitation allows to read arbitrary memory within the same operating system (OS) process. Carrying out a Spectre attack, for example, is believed to be possible using shared memory access and high-precision timers. Both exist as APIs provided by the web platform with <code>SharedArrayBuffer</code> and the Performance API.</p>
+<p>As a result, an attacker would have been able to violate the Same-Origin Policy by embedding a cross-origin resource (using e.g., an <code>&lt;img&gt;</code> element) and reading process memory. As a reaction, browser engines have originally disabled access to those APIs or reduced timing granularity.</p>
+<p>Despite blocking Web APIs, major browsers like Chrome and Firefox have also gone through significant re-architecturing efforts to create and assign separate OS-processes to websites of different <em>Sites</em>. These long-term engineering projects (called <em>Site-Isolation</em>) were mostly without side effects for web developers. However, this is not enough, given the embedding attack example above.</p>
+<p>In order to reenable access to these coveted APIs, a website now has to ensure that is not including any cross-origin content (using <code>Cross-Origin-Embedder-Policy</code> or <em>COEP</em>) or only content that has been explicitly listed as public across process boundaries by its author (using <code>Cross-Origin-Resource-Policy</code>). Furthermore, the web page needs to disallow synchronous window handle access using the <code>Cross-Origin-Opener-Policy</code> (also known as <em>COOP</em>).</p>
+<p>When used in combination, COEP and COOP lead to the <code>window.crossOriginIsolated</code> property becoming <code>true</code>. This give access to the <code>SharedArrayBuffer</code> constructor and high-precision timing in the Performance API.</p>
+<p>To summarize, <em>Cross-Origin Isolation</em> and is a mechanism to retrofit the web  security model in light of new attacks: A website can only get access by being assigned its very own, unique browser process that is also free of potentially sensitive cross-origin content.</p>
+<h2>What else?</h2>
+<p>Do you feel like something is unclear or missing?</p>
+</article>
+
+<hr>
+
+<section id="minicontact">
+<em>
+<!-- Please comment on <a href="https://social.security.plumbing/@freddy">Mastodon</a>. -->
+If you find a mistake in this article, you can <a href="https://github.com/freddyb/homepage/edit/main/content/origins_sites_and_more.md">submit a pull request on GitHub</a>.
+</em>
+</section>
+
+<section id="article-list">
+<h4>Recent posts</h4>
+<ol>
+  <li><a href="https://vaurenw.github.io/madweb-keynote-2025.html">With Carrots & Sticks - Can the browser handle web security?</a>
+    <em>(Tue 08 April 2025)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/home-assistant-can-not-be-secured-for-internet-access.html">Home assistant can not be secured for internet access</a>
+    <em>(Sun 15 December 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/modern-solutions-xsleaks.html">Modern solutions against cross-site attacks</a>
+    <em>(Tue 26 November 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/prompt-injections-and-a-demo.html">Prompt Injections and a demo</a>
+    <em>(Wed 18 September 2024)</em>
+  </li>
+  <li><a href="https://vaurenw.github.io/mozilla-monument.html">The Mozilla Monument in San Francisco</a>
+    <em>(Fri 05 July 2024)</em>
+  </li>
+            
+</ol>
+</section>
+</div>
+</div>
+</body>
+</html>
