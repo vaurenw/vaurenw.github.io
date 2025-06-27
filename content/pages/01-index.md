@@ -1,44 +1,37 @@
-Title: Frederik Braun
+Title: Vauren Wimalasena
 Slug: index
 save_as: index.html
 
-Hi,
+```json
+{
+  "name": "Vauren Wimalasena",
+  "title": "3rd year electrical engineering @UNB",
+  "location": "New Brunswick, CA",
+  "about_me": [
+    "playing with ml",
+    "building apps",
+    "valedictorian in hs",
+  ],
+  "experience": {
+    "research assistant": "UNB",
+    "phy and chem tutor": "self employed",
+  },
+  "languages": [
+    "Python",
+    "VHDL",
+    "C/C++"
+  ],
+  "hardware": [
+    "Raspberry Pi/Arduino/ESP32",
+    "learning GPU Programming"
+  ],
+}
+```
 
-my name is <strong class="noboldstrong"><a rel="me"
-href="https://social.security.plumbing/@freddy">Frederik Braun</a></strong> and
-I'm a security engineer and manager working on the Mozilla Firefox web browser.
-My work on Firefox involves various topics ranging from security, web standards,
-static analysis, bug bounty, and public speaking. Some of my major projects
-include the
-[eslint-plugin-no-unsanitized](https://github.com/mozilla/eslint-plugin-no-unsanitized/) -
-which helps in
-[finding and fixing DOM-Based
-XSS](https://frederik-braun.com/finding-and-fixing-dom-based-xss-with-static-analysis.html),
-the [Mozilla Attack & Defense blog](https://blog.mozilla.org/attack-and-defense/),
-the paper [Hardening Firefox against Injection Attacks
-(PDF)](/publications/hardening_paper.pdf) and the [Subresource
-Integrity](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity)
-web standard.
+[Twitter](tab:https://x.com/vaurenw), [YouTube](https://www.youtube.com/@vaurenw), [Github](https://github.com/vaurenw).
 
-I am particularly proud of the blog post [Examining JavaScript Inter-Process
-Communication in
-Firefox](https://blog.mozilla.org/attack-and-defense/2021/04/27/examining-javascript-inter-process-communication-in-firefox/),
-which explains how to find a sandbox escape in Firefox.
-The blog post was made into a video
-[What is a Browser Security Sandbox?! (Learn to Hack Firefox)](https://www.youtube.com/watch?v=StQ_6juJlZY&t=0s),
-by YouTuber [LiveOverflow](https://www.youtube.com/@LiveOverflow).
 
-<!-- I also co-authored a whitepaper about [the benefits of the X-Frame-Options
-security header](xfo-clickjacking.pdf) with [Mario
-Heiderich](http://heideri.ch/). It mostly shows attacks and techniques against
-website that _can_ be framed and I now believe that a Content Security Policy
-with `frame-ancestors: none` is just as good. -->
+ 
 
-Before working at Mozilla, I wrote a [diploma thesis about the Same Origin
-Policy](/publications/thesis/Thesis-Origin_Policy_Enforcement_in_Modern_Browsers.pdf)
-in 2012, which concluded my studies of IT-Security at the [Ruhr University](https://www.rub.de/)
-in Bochum. This is also where I co-founded the CTF team
-[fluxfingers](https://fluxfingers.net).
-
-Please proceed [here to read my blog posts](archives.html) or learn more about
-[my open source projects and conference talks](https://frederikbraun.de/pages/publications.html).
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="">
